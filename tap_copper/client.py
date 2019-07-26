@@ -2,10 +2,10 @@ import requests
 import singer
 import singer.metrics
 
-LOGGER = singer.get_logger()  # noqa
+LOGGER = singer.get_logger()
 
 
-class MavenlinkClient:
+class CopperClient:
 
     MAX_TRIES = 5
 
@@ -18,9 +18,12 @@ class MavenlinkClient:
         response = requests.request(
             method,
             url,
+            
             headers={
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer {}'.format(self.config['token'])
+                'X-PW-AccessToken': self.config['token'],
+                'X-PW-Application': 'developer_api',
+                'X-PW-UserEmail': self.config['email']
             },
             params=params,
             json=body)

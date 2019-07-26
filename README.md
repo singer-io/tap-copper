@@ -1,4 +1,4 @@
-# tap-mavenlink
+# tap-copper
 
 Author: Drew Banin (drew@fishtownanalytics.com)
 
@@ -8,20 +8,6 @@ It:
 - Generates a catalog of available data in Mavenlink
 - Extracts the following resources:
   - [Account Memberships](http://developer.mavenlink.com/account_memberships/)
-  - [Assignments](http://developer.mavenlink.com/assignments/)
-  - [Estimates](http://developer.mavenlink.com/estimates/)
-  - [Estimates Resources](http://developer.mavenlink.com/estimate_scenario_resources/)
-  - [Estimates Scenarios](http://developer.mavenlink.com/estimate_scenarios/)
-  - [Expenses](http://developer.mavenlink.com/expenses/)
-  - [Expense Categories](http://developer.mavenlink.com/expense_categories/)
-  - [Invoices](http://developer.mavenlink.com/invoices/)
-  - [Posts](http://developer.mavenlink.com/posts/)
-  - [Stories](http://developer.mavenlink.com/stories/)
-  - [Time Entries](http://developer.mavenlink.com/time_entries/)
-  - [Users](http://developer.mavenlink.com/users/)
-  - [Workspaces](http://developer.mavenlink.com/workspaces/)
-  - [Workspace Allocations](http://developer.mavenlink.com/beta/#tag/Workspace-Allocations)
-  - [Workspace Groups](http://developer.mavenlink.com/workspace_groups/)
 
 ### Quick Start
 
@@ -56,7 +42,7 @@ Step 4 generates a a file called `catalog.json` that specifies all the available
 6. Run it!
 
 ```bash
-tap-mavenlink -c config.json --catalog catalog.json
+tap-copper -c config.json --catalog catalog.json
 ```
 
 Copyright &copy; 2019 Fishtown Analytics
