@@ -1,4 +1,4 @@
 {
-    "token": "",
-    "user_agent": "tap-mavenlink <your-email@domain.com>"
+    "token": "abc123token",
+    "email": "copper_user@domain.com"
 }
