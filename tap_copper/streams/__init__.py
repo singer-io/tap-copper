@@ -3,6 +3,7 @@ from tap_copper.streams.people import PeopleStream
 from tap_copper.streams.leads import LeadsStream
 from tap_copper.streams.companies import CompaniesStream
 from tap_copper.streams.opportunities import OpportunitiesStream
+from tap_copper.streams.projects import ProjectsStream
 
 
 AVAILABLE_STREAMS = [
@@ -10,7 +11,8 @@ AVAILABLE_STREAMS = [
    PeopleStream,
    LeadsStream,
    CompaniesStream,
-    OpportunitiesStream,
+   OpportunitiesStream,
+   ProjectsStream,
 ]
 
 __all__ = [
@@ -18,5 +20,6 @@ __all__ = [
    'PeopleStream',
    'LeadsStream',
    'CompaniesStream',
-    'OpportunitiesStream',
+   'OpportunitiesStream',
+   'ProjectsStream',
 ]
