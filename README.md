@@ -7,15 +7,16 @@ This is a [Singer](http://singer.io) tap that produces JSON-formatted data follo
 It:
 - Generates a catalog of available data in Copper
 - Extracts the following resources:
-  - [Accounts](https://developer.copper.com/?version=latest#0add3728-327d-4b16-82a8-40b54d176fa9)
-  - [Users](https://developer.copper.com/?version=latest#0add3728-327d-4b16-82a8-40b54d176fa9)
-  - [Leads](https://developer.copper.com/?version=latest#fa0e5345-3ec3-41ae-acf1-700c8fb27a3a)
-  - [People](https://developer.copper.com/?version=latest#4db472db-00a1-45ab-9185-c4660916aac0)
-  - [Companies](https://developer.copper.com/?version=latest#84b5bc50-275d-4a69-a004-6e3f3f077583)
-  - [Opportunities](https://developer.copper.com/?version=latest#1cd9465f-bd88-4a2c-91fc-ad2d41ecc540)
-  - [Activities](https://developer.copper.com/?version=latest#2c9a03e2-bb9f-431b-8d22-3ff741d8dee3)
-  - [Projects](https://developer.copper.com/?version=latest#ef473fd5-7e1c-4ca7-9bc6-12c9e025afd2)
-  - [Tasks](https://developer.copper.com/?version=latest#0a0059cd-6aa6-4937-a5ec-47c23319271e)
+  - [Accounts](https://developer.copper.com/account-and-users/fetch-account-details.html)
+  - [Users](https://developer.copper.com/account-and-users/list-users.html)
+  - [Leads](https://developer.copper.com/leads/list-leads-search.html)
+  - [People](https://developer.copper.com/people/list-people-search.html)
+  - [Companies](https://developer.copper.com/companies/list-companies-search.html)
+  - [Opportunities](https://developer.copper.com/opportunities/list-opportunities-search.html)
+  - [Activities](https://developer.copper.com/activities/list-activities-search.html)
+  - [Projects](https://developer.copper.com/projects/list-projects-search.html)
+  - [Tasks](https://developer.copper.com/tasks/list-tasks-search.html)
+  - [Custom Fields](https://developer.copper.com/custom-fields/general/list-custom-field-definitions.html)
 
 ### Quick Start
 
