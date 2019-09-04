@@ -44,7 +44,7 @@ class BaseStream(base):
 
         LOGGER.info('Syncing data for {}'.format(table))
         url = self.get_url()
-        params = self.get_params()            
+        params = self.get_params()
         body = self.get_body()
 
         while True:
