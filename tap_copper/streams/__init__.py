@@ -6,6 +6,7 @@ from tap_copper.streams.opportunities import OpportunitiesStream
 from tap_copper.streams.projects import ProjectsStream
 from tap_copper.streams.tasks import TasksStream
 from tap_copper.streams.activities import ActivitiesStream
+from tap_copper.streams.custom_fields import CustomFieldsStream
 
 
 AVAILABLE_STREAMS = [
@@ -17,6 +18,7 @@ AVAILABLE_STREAMS = [
    ProjectsStream,
    TasksStream,
    ActivitiesStream,
+   CustomFieldsStream,
 ]
 
 __all__ = [
@@ -28,4 +30,5 @@ __all__ = [
    'ProjectsStream',
    'TasksStream',
    'ActivitiesStream',
+   'CustomFieldsStream',
 ]

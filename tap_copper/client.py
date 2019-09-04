@@ -29,6 +29,7 @@ class CopperClient:
             json=body)
 
         if response.status_code != 200:
+            LOGGER.info('status={}'.format(response.status_code))
             raise RuntimeError(response.text)
 
         return response.json()
