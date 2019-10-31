@@ -1,5 +1,5 @@
-from tap_copper.streams.base import BaseStream
 import singer
+from tap_copper.streams.base import BaseStream
 
 LOGGER = singer.get_logger()
 
@@ -9,7 +9,7 @@ class CustomFieldsStream(BaseStream):
     TABLE = 'custom_fields'
     KEY_PROPERTIES = ['id']
 
-        
+
     @property
     def path(self):
         return '/custom_field_definitions'
@@ -19,7 +19,7 @@ class CustomFieldsStream(BaseStream):
 
         LOGGER.info('Syncing data for {}'.format(table))
         url = self.get_url()
-    
+
         response = self.client.make_request(url, self.API_METHOD)
         transformed = self.get_stream_data(response)
 
@@ -28,5 +28,5 @@ class CustomFieldsStream(BaseStream):
             counter.increment(len(transformed))
 
         LOGGER.info('Synced {}'.format(table))
-                
-        return self.state   
+
+        return self.state

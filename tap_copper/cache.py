@@ -1,4 +1,3 @@
-
 from collections import defaultdict
 
-resources = defaultdict(set)
+RESOURCES = defaultdict(set)

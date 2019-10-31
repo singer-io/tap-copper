@@ -10,25 +10,25 @@ from tap_copper.streams.custom_fields import CustomFieldsStream
 
 
 AVAILABLE_STREAMS = [
-   UsersStream,
-   PeopleStream,
-   LeadsStream,
-   CompaniesStream,
-   OpportunitiesStream,
-   ProjectsStream,
-   TasksStream,
-   ActivitiesStream,
-   CustomFieldsStream,
+    UsersStream,
+    PeopleStream,
+    LeadsStream,
+    CompaniesStream,
+    OpportunitiesStream,
+    ProjectsStream,
+    TasksStream,
+    ActivitiesStream,
+    CustomFieldsStream,
 ]
 
 __all__ = [
-   'UsersStream',
-   'PeopleStream',
-   'LeadsStream',
-   'CompaniesStream',
-   'OpportunitiesStream',
-   'ProjectsStream',
-   'TasksStream',
-   'ActivitiesStream',
-   'CustomFieldsStream',
+    'UsersStream',
+    'PeopleStream',
+    'LeadsStream',
+    'CompaniesStream',
+    'OpportunitiesStream',
+    'ProjectsStream',
+    'TasksStream',
+    'ActivitiesStream',
+    'CustomFieldsStream',
 ]

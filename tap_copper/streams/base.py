@@ -1,16 +1,12 @@
-import math
-import pytz
 import singer
 import singer.utils
 import singer.metrics
 
-from datetime import timedelta, datetime
-
+from tap_framework.streams import BaseStream as base
 from tap_copper.config import get_config_start_date
 from tap_copper.state import incorporate, save_state, \
     get_last_record_value_for_table
 
-from tap_framework.streams import BaseStream as base
 
 
 LOGGER = singer.get_logger()
@@ -30,12 +26,12 @@ class BaseStream(base):
             'sort_direction': "asc"
         }
         body.update(self.custom_body())
-        
+
         return body
-        
+
     def custom_body(self):
         return {}
-    
+
     def get_params(self):
         return {}
 
@@ -60,18 +56,18 @@ class BaseStream(base):
 
             if len(transformed) == 0:
                 break
-            else:
-                body['page_number'] += 1
-                self.save_state(transformed[-1])
-                
+
+            body['page_number'] += 1
+            self.save_state(transformed[-1])
+
         return self.state
-                
+
     def get_start_date(self):
         bookmark = get_last_record_value_for_table(self.state, self.TABLE)
         if bookmark:
             return bookmark
-        else:
-            return get_config_start_date(self.config)                
+
+        return get_config_start_date(self.config)
 
     def save_state(self, last_record):
         if 'date_modified' in last_record:
@@ -84,7 +80,7 @@ class BaseStream(base):
         transformed = []
         for record in response:
             ## removes fields with missing/wrong data type
-            record = self.transform_record(record) 
+            record = self.transform_record(record)
             transformed.append(record)
 
         return transformed

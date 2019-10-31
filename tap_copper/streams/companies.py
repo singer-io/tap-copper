@@ -1,5 +1,5 @@
-from tap_copper.streams.base import BaseStream
 import singer
+from tap_copper.streams.base import BaseStream
 
 LOGGER = singer.get_logger()
 
@@ -9,7 +9,7 @@ class CompaniesStream(BaseStream):
     TABLE = 'companies'
     KEY_PROPERTIES = ['id']
 
-        
+
     @property
     def path(self):
         return '/companies/search'

@@ -1,8 +1,6 @@
 import json
 import singer
 
-from dateutil.parser import parse
-
 LOGGER = singer.get_logger()
 
 

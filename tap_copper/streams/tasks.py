@@ -1,5 +1,5 @@
-from tap_copper.streams.base import BaseStream
 import singer
+from tap_copper.streams.base import BaseStream
 
 LOGGER = singer.get_logger()
 
@@ -9,12 +9,12 @@ class TasksStream(BaseStream):
     TABLE = 'tasks'
     KEY_PROPERTIES = ['id']
 
-        
+
     @property
     def path(self):
         return '/tasks/search'
-        
+
     def custom_body(self):
-        return { 
+        return {
             "minimum_modified_date": self.get_start_date()
         }

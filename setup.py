@@ -12,6 +12,13 @@ setup(name='tap-copper',
       install_requires=[
           'tap-framework==0.0.4',
       ],
+      extras_require={
+        'dev': [
+            'pylint',
+            'ipdb',
+            'nose'
+        ]
+      },
       entry_points='''
           [console_scripts]
           tap-copper=tap_copper:main

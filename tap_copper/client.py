@@ -18,7 +18,7 @@ class CopperClient:
         response = requests.request(
             method,
             url,
-            
+
             headers={
                 'Content-Type': 'application/json',
                 'X-PW-AccessToken': self.config['token'],
@@ -33,4 +33,3 @@ class CopperClient:
             raise RuntimeError(response.text)
 
         return response.json()
-
