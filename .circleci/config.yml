@@ -1,23 +1,48 @@
-version: 2
+version: 2.1
 jobs:
   build:
     docker:
-      - image: 218546966473.dkr.ecr.us-east-1.amazonaws.com/circle-ci:stitch-tap-tester-uv
+      - image: 218546966473.dkr.ecr.us-east-1.amazonaws.com/circle-ci:stitch-tap-tester
     steps:
       - checkout
       - run:
-          name: 'Setup virtual env'
+          name: "Setup virtual env"
           command: |
-            uv venv --python 3.9 /usr/local/share/virtualenvs/tap-copper
+            python3 -mvenv /usr/local/share/virtualenvs/tap-copper
             source /usr/local/share/virtualenvs/tap-copper/bin/activate
-            uv pip install -U 'pip<19.2' setuptools
-            uv pip install .[dev]
+            pip install -U "pip==22.2.2" "setuptools==65.3.0"
+            pip install .[dev]
       - run:
-          name: 'pylint'
+          name: "JSON Validator"
+          command: |
+            source /usr/local/share/virtualenvs/tap-tester/bin/activate
+            stitch-validate-json tap_copper/schemas/*.json
+      - run:
+          name: "pylint"
           command: |
             source /usr/local/share/virtualenvs/tap-copper/bin/activate
-            uv pip install pylint
-            pylint tap_copper --disable missing-docstring,logging-format-interpolation,no-member,arguments-differ,too-few-public-methods,consider-using-f-string,missing-timeout,unspecified-encoding,raise-missing-from,arguments-renamed
+            pip install pylint
+            pylint tap_copper -d C,R,W
+      - add_ssh_keys
+      - run:
+          name: "Unit Tests"
+          command: |
+            source /usr/local/share/virtualenvs/tap-copper/bin/activate
+            pip install nose coverage
+            nosetests --with-coverage --cover-erase --cover-package=tap_copper --cover-html-dir=htmlcov tests/unittests
+            coverage html
+      - store_test_results:
+          path: test_output/report.xml
+      - store_artifacts:
+          path: htmlcov
+      - run:
+          name: "Integration Tests"
+          command: |
+            aws s3 cp s3://com-stitchdata-dev-deployment-assets/environments/tap-tester/tap_tester_sandbox dev_env.sh
+            source dev_env.sh
+            source /usr/local/share/virtualenvs/tap-tester/bin/activate
+            run-test --tap=tap-copper tests
+
 
 workflows:
   version: 2
@@ -28,7 +53,7 @@ workflows:
   build_daily:
     triggers:
       - schedule:
-          cron: "0 0 * * *"
+          cron: "0 19 * * *"
           filters:
             branches:
               only:

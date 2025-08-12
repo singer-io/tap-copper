@@ -1,7 +1,8 @@
 from tap_copper.streams.abstracts import FullTableStream
 
-class Users(FullTableStream):
-    tap_stream_id = "users"
+class LeadStatuses(FullTableStream):
+    tap_stream_id = "lead_statuses"
     key_properties = ["id"]
     replication_method = "FULL_TABLE"
-    path = "users/search"
+    data_key = "root"
+    path = "lead_statuses"

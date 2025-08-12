@@ -1,15 +1,9 @@
-import singer
-from tap_copper.streams.base import BaseStream
+from tap_copper.streams.abstracts import ChildBaseStream
 
-LOGGER = singer.get_logger()  # noqa
-
-
-class PeopleStream(BaseStream):
-    API_METHOD = 'POST'
-    TABLE = 'people'
-    KEY_PROPERTIES = ['id']
-
-
-    @property
-    def path(self):
-        return '/people/search'
+class People(ChildBaseStream):
+    tap_stream_id = "people"
+    key_properties = ["id"]
+    replication_method = "INCREMENTAL"
+    path = "people/search"
+    parent = "companies"
+    bookmark_value = None

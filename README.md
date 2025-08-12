@@ -1,55 +1,242 @@
 # tap-copper
 
-Author: Jacob Werderits (jacob@fishtownanalytics.com)
+This is a [Singer](https://singer.io) tap that produces JSON-formatted data
+following the [Singer
+spec](https://github.com/singer-io/getting-started/blob/master/docs/SPEC.md).
 
-This is a [Singer](http://singer.io) tap that produces JSON-formatted data following the [Singer spec](https://github.com/singer-io/getting-started/blob/master/SPEC.md).
+This tap:
 
-It:
-- Generates a catalog of available data in Copper
+- Pulls raw data from the [copper API].
 - Extracts the following resources:
-  - [Accounts](https://developer.copper.com/account-and-users/fetch-account-details.html)
-  - [Users](https://developer.copper.com/account-and-users/list-users.html)
-  - [Leads](https://developer.copper.com/leads/list-leads-search.html)
-  - [People](https://developer.copper.com/people/list-people-search.html)
-  - [Companies](https://developer.copper.com/companies/list-companies-search.html)
-  - [Opportunities](https://developer.copper.com/opportunities/list-opportunities-search.html)
-  - [Activities](https://developer.copper.com/activities/list-activities-search.html)
-  - [Projects](https://developer.copper.com/projects/list-projects-search.html)
-  - [Tasks](https://developer.copper.com/tasks/list-tasks-search.html)
-  - [Custom Fields](https://developer.copper.com/custom-fields/general/list-custom-field-definitions.html)
+    - [Account](https://developer.copper.com/account-and-users/fetch-account-details.html)
 
-### Quick Start
+    - [ActivitiesSearch](https://developer.copper.com/activities/list-activities-search.html)
+
+    - [Companies](https://developer.copper.com/companies/list-companies-search.html)
+
+    - [ContactTypes](https://developer.copper.com/people/list-contact-types.html)
+
+    - [CustomFieldDefinitions](https://developer.copper.com/custom-fields/general/list-custom-field-definitions.html)
+
+    - [CustomerSources](https://developer.copper.com/leads/list-customer-sources.html)
+
+    - [LeadStatuses](https://developer.copper.com/leads/list-lead-statuses.html)
+
+    - [Leads](https://developer.copper.com/leads/list-leads-search.html)
+
+    - [LossReasons](https://developer.copper.com/opportunities/list-loss-reasons.html)
+
+    - [Opportunities](https://developer.copper.com/opportunities/list-opportunities-search.html)
+
+    - [People](https://developer.copper.com/people/list-people-search.html)
+
+    - [PipelineStages](https://developer.copper.com/opportunities/list-pipeline-stages.html)
+
+    - [Pipelines](https://developer.copper.com/opportunities/list-pipelines.html)
+
+    - [Projects](https://developer.copper.com/projects/list-projects-search.html)
+
+    - [Tags](https://developer.copper.com/tags/list-tags.html)
+
+    - [Tasks](https://developer.copper.com/tasks/list-tasks-search.html)
+
+    - [Users](https://developer.copper.com/account-and-users/list-users.html)
+
+- Outputs the schema for each resource
+- Incrementally pulls data based on the input state
+
+
+## Streams
+
+
+** [account](https://developer.copper.com/account-and-users/fetch-account-details.html)**
+- Data Key = root
+- Primary keys: ['id']
+- Replication strategy: FULL_TABLE
+
+** [activities_search](https://developer.copper.com/activities/list-activities-search.html)**
+- Primary keys: ['id']
+- Replication strategy: INCREMENTAL
+
+** [companies](https://developer.copper.com/companies/list-companies-search.html)**
+- Primary keys: ['id']
+- Replication strategy: INCREMENTAL
+
+** [contact_types](https://developer.copper.com/people/list-contact-types.html)**
+- Data Key = root
+- Primary keys: ['id']
+- Replication strategy: FULL_TABLE
+
+** [custom_field_definitions](https://developer.copper.com/custom-fields/general/list-custom-field-definitions.html)**
+- Data Key = root
+- Primary keys: ['id']
+- Replication strategy: FULL_TABLE
+
+** [customer_sources](https://developer.copper.com/leads/list-customer-sources.html)**
+- Data Key = root
+- Primary keys: ['id']
+- Replication strategy: FULL_TABLE
+
+** [lead_statuses](https://developer.copper.com/leads/list-lead-statuses.html)**
+- Data Key = root
+- Primary keys: ['id']
+- Replication strategy: FULL_TABLE
+
+** [leads](https://developer.copper.com/leads/list-leads-search.html)**
+- Primary keys: ['id']
+- Replication strategy: INCREMENTAL
+
+** [loss_reasons](https://developer.copper.com/opportunities/list-loss-reasons.html)**
+- Data Key = root
+- Primary keys: ['id']
+- Replication strategy: FULL_TABLE
+
+** [opportunities](https://developer.copper.com/opportunities/list-opportunities-search.html)**
+- Primary keys: ['id']
+- Replication strategy: INCREMENTAL
+
+** [people](https://developer.copper.com/people/list-people-search.html)**
+- Primary keys: ['id']
+- Replication strategy: INCREMENTAL
+
+** [pipeline_stages](https://developer.copper.com/opportunities/list-pipeline-stages.html)**
+- Data Key = root
+- Primary keys: ['id']
+- Replication strategy: FULL_TABLE
+
+** [pipelines](https://developer.copper.com/opportunities/list-pipelines.html)**
+- Data Key = root
+- Primary keys: ['id']
+- Replication strategy: FULL_TABLE
+
+** [projects](https://developer.copper.com/projects/list-projects-search.html)**
+- Primary keys: ['id']
+- Replication strategy: INCREMENTAL
+
+** [tags](https://developer.copper.com/tags/list-tags.html)**
+- Data Key = root
+- Primary keys: ['name']
+- Replication strategy: FULL_TABLE
+
+** [tasks](https://developer.copper.com/tasks/list-tasks-search.html)**
+- Primary keys: ['id']
+- Replication strategy: INCREMENTAL
+
+** [users](https://developer.copper.com/account-and-users/list-users.html)**
+- Primary keys: ['id']
+- Replication strategy: FULL_TABLE
+
+
+
+## Authentication
+
+## Quick Start
 
 1. Install
 
-```bash
-git clone git@github.com:fishtown-analytics/tap-copper.git
-cd tap-copper
-pip install -e .
-```
+    Clone this repository, and then install using setup.py. We recommend using a virtualenv:
 
-2. Get an API key
+    ```bash
+    > virtualenv -p python3 venv
+    > source venv/bin/activate
+    > python setup.py install
+    OR
+    > cd .../tap-copper
+    > pip install -e .
+    ```
+2. Dependent libraries. The following dependent libraries were installed.
+    ```bash
+    > pip install singer-python
+    > pip install target-stitch
+    > pip install target-json
+    
+    ```
+    - [singer-tools](https://github.com/singer-io/singer-tools)
+    - [target-stitch](https://github.com/singer-io/target-stitch)
 
-Create a Copper [Authentication Token](https://developer.copper.com/?version=latest#authentication). Tokens are tied to a user's email (the user's permissions determine the data avaialable). After receiving an API token keep it somewhere safe, as you'll need it to authenticate requests. See "Create the config file" below for more information on using this API Token,
+3. Create your tap's `config.json` file.  The tap config file for this tap should include these entries:
+   - `start_date` - the default value to use if no bookmark exists for an endpoint (rfc3339 date string)
+   - `user_agent` (string, optional): Process and email for API logging purposes. Example: `tap-copper <api_user_email@your_company.com>`
+   - `request_timeout` (integer, `300`): Max time for which request should wait to get a response. Default request_timeout is 300 seconds.
+   
+    ```json
+    {
+        "start_date": "2019-01-01T00:00:00Z",
+        "user_agent": "tap-copper <api_user_email@your_company.com>",
+        "request_timeout": 300,
+        ...
+    }```
 
-3. Create the config file.
+    Optionally, also create a `state.json` file. `currently_syncing` is an optional attribute used for identifying the last object to be synced in case the job is interrupted mid-stream. The next run would begin where the last job left off.
 
-There is a template you can use at `config.json.example`, just copy it to `config.json` in the repo root and insert your token and email
+    ```json
+    {
+        "currently_syncing": "engage",
+        "bookmarks": {
+            "export": "2019-09-27T22:34:39.000000Z",
+            "funnels": "2019-09-28T15:30:26.000000Z",
+            "revenue": "2019-09-28T18:23:53Z"
+        }
+    }
+    ```
 
-4. Run the application to generate a catalog.
+4. Run the Tap in Discovery Mode
+    This creates a catalog.json for selecting objects/fields to integrate:
+    ```bash
+    tap-copper --config config.json --discover > catalog.json
+    ```
+   See the Singer docs on discovery mode
+   [here](https://github.com/singer-io/getting-started/blob/master/docs/DISCOVERY_MODE.md#discovery-mode).
 
-```bash
-tap-copper -c config.json --discover > catalog.json
-```
+5. Run the Tap in Sync Mode (with catalog) and [write out to state file](https://github.com/singer-io/getting-started/blob/master/docs/RUNNING_AND_DEVELOPING.md#running-a-singer-tap-with-a-singer-target)
 
-5. Select the tables you'd like to replicate
+    For Sync mode:
+    ```bash
+    > tap-copper --config tap_config.json --catalog catalog.json > state.json
+    > tail -1 state.json > state.json.tmp && mv state.json.tmp state.json
+    ```
+    To load to json files to verify outputs:
+    ```bash
+    > tap-copper --config tap_config.json --catalog catalog.json | target-json > state.json
+    > tail -1 state.json > state.json.tmp && mv state.json.tmp state.json
+    ```
+    To pseudo-load to [Stitch Import API](https://github.com/singer-io/target-stitch) with dry run:
+    ```bash
+    > tap-copper --config tap_config.json --catalog catalog.json | target-stitch --config target_config.json --dry-run > state.json
+    > tail -1 state.json > state.json.tmp && mv state.json.tmp state.json
+    ```
 
-Step 4 generates a a file called `catalog.json` that specifies all the available endpoints and fields. You'll need to open the file and select the ones you'd like to replicate. See the [Singer guide on Catalog Format](https://github.com/singer-io/getting-started/blob/c3de2a10e10164689ddd6f24fee7289184682c1f/BEST_PRACTICES.md#catalog-format) for more information on how tables are selected.
+6. Test the Tap
+    
+    While developing the copper tap, the following utilities were run in accordance with Singer.io best practices:
+    Pylint to improve [code quality](https://github.com/singer-io/getting-started/blob/master/docs/BEST_PRACTICES.md#code-quality):
+    ```bash
+    > pylint tap_copper -d missing-docstring -d logging-format-interpolation -d too-many-locals -d too-many-arguments
+    ```
+    Pylint test resulted in the following score:
+    ```bash
+    Your code has been rated at 9.67/10
+    ```
 
-6. Run it!
+    To [check the tap](https://github.com/singer-io/singer-tools#singer-check-tap) and verify working:
+    ```bash
+    > tap_copper --config tap_config.json --catalog catalog.json | singer-check-tap > state.json
+    > tail -1 state.json > state.json.tmp && mv state.json.tmp state.json
+    ```
 
-```bash
-tap-copper -c config.json --catalog catalog.json
-```
+    #### Unit Tests
+
+    Unit tests may be run with the following.
+
+    ```
+    python -m pytest --verbose
+    ```
+
+    Note, you may need to install test dependencies.
+
+    ```
+    pip install -e .'[dev]'
+    ```
+---
 
 Copyright &copy; 2019 Stitch

@@ -1,32 +1,44 @@
-#!/usr/bin/env python3
-
+import sys
+import json
 import singer
+from tap_copper.client import Client
+from tap_copper.discover import discover
+from tap_copper.sync import sync
 
-import tap_framework
+LOGGER = singer.get_logger()
 
-from tap_copper.client import CopperClient
-from tap_copper.streams import AVAILABLE_STREAMS
+REQUIRED_CONFIG_KEYS = ['api_key', 'user_email']
 
-LOGGER = singer.get_logger()  # noqa
-
-
-class CopperRunner(tap_framework.Runner):
-    pass
+def do_discover():
+    """
+    Discover and emit the catalog to stdout
+    """
+    LOGGER.info("Starting discover")
+    catalog = discover()
+    json.dump(catalog.to_dict(), sys.stdout, indent=2)
+    LOGGER.info("Finished discover")
 
 
 @singer.utils.handle_top_exception(LOGGER)
 def main():
-    args = singer.utils.parse_args(required_config_keys=[
-        'token',
-        'email'])
-    client = CopperClient(args.config)
-    runner = CopperRunner(args, client, AVAILABLE_STREAMS)
+    """
+    Run the tap
+    """
+    parsed_args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
+    state = {}
+    if parsed_args.state:
+        state = parsed_args.state
 
-    if args.discover:
-        runner.do_discover()
-    else:
-        runner.do_sync()
+    with Client(parsed_args.config) as client:
+        if parsed_args.discover:
+            do_discover()
+        elif parsed_args.catalog:
+            sync(
+                client=client,
+                config=parsed_args.config,
+                catalog=parsed_args.catalog,
+                state=state)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
