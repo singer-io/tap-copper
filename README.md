@@ -49,82 +49,99 @@ This tap:
 ## Streams
 
 
-** [account](https://developer.copper.com/account-and-users/fetch-account-details.html)**
-- Data Key = root
-- Primary keys: ['id']
-- Replication strategy: FULL_TABLE
+**[account]**
+(https://developer.copper.com/account-and-users/fetch-account-details.html)
+Data Key = root
+Primary keys: ['id']
+Replication strategy: FULL_TABLE
 
-** [activities_search](https://developer.copper.com/activities/list-activities-search.html)**
-- Primary keys: ['id']
-- Replication strategy: INCREMENTAL
+**[activities_search]**
+(https://developer.copper.com/activities/list-activities-search.html)
+Primary keys: ['id']
+Replication strategy: INCREMENTAL
 
-** [companies](https://developer.copper.com/companies/list-companies-search.html)**
-- Primary keys: ['id']
-- Replication strategy: INCREMENTAL
+**[companies]**
+(https://developer.copper.com/companies/list-companies-search.html)
+Primary keys: ['id']
+Replication strategy: INCREMENTAL
 
-** [contact_types](https://developer.copper.com/people/list-contact-types.html)**
-- Data Key = root
-- Primary keys: ['id']
-- Replication strategy: FULL_TABLE
+**[contact_types]**
+(https://developer.copper.com/people/list-contact-types.html)
+Data Key = root
+Primary keys: ['id']
+Replication strategy: FULL_TABLE
 
-** [custom_field_definitions](https://developer.copper.com/custom-fields/general/list-custom-field-definitions.html)**
-- Data Key = root
-- Primary keys: ['id']
-- Replication strategy: FULL_TABLE
+**[custom_field_definitions]**
+(https://developer.copper.com/custom-fields/general/list-custom-field-definitions.html)
+Data Key = root
+Primary keys: ['id']
+Replication strategy: FULL_TABLE
 
-** [customer_sources](https://developer.copper.com/leads/list-customer-sources.html)**
-- Data Key = root
-- Primary keys: ['id']
-- Replication strategy: FULL_TABLE
+**[customer_sources]**
+(https://developer.copper.com/leads/list-customer-sources.html)
+Data Key = root
+Primary keys: ['id']
+Replication strategy: FULL_TABLE
 
-** [lead_statuses](https://developer.copper.com/leads/list-lead-statuses.html)**
-- Data Key = root
-- Primary keys: ['id']
-- Replication strategy: FULL_TABLE
+**[lead_statuses]**
+(https://developer.copper.com/leads/list-lead-statuses.html)
+Data Key = root
+Primary keys: ['id']
+Replication strategy: FULL_TABLE
 
-** [leads](https://developer.copper.com/leads/list-leads-search.html)**
-- Primary keys: ['id']
-- Replication strategy: INCREMENTAL
+**[leads]**
+(https://developer.copper.com/leads/list-leads-search.html)
+Primary keys: ['id']
+Replication strategy: INCREMENTAL
 
-** [loss_reasons](https://developer.copper.com/opportunities/list-loss-reasons.html)**
-- Data Key = root
-- Primary keys: ['id']
-- Replication strategy: FULL_TABLE
+**[loss_reasons]**
+(https://developer.copper.com/opportunities/list-loss-reasons.html)
+Data Key = root
+Primary keys: ['id']
+Replication strategy: FULL_TABLE
 
-** [opportunities](https://developer.copper.com/opportunities/list-opportunities-search.html)**
-- Primary keys: ['id']
-- Replication strategy: INCREMENTAL
+**[opportunities]**
+(https://developer.copper.com/opportunities/list-opportunities-search.html)
+Primary keys: ['id']
+Replication strategy: INCREMENTAL
 
-** [people](https://developer.copper.com/people/list-people-search.html)**
-- Primary keys: ['id']
-- Replication strategy: INCREMENTAL
+**[people]**
+(https://developer.copper.com/people/list-people-search.html)
+Primary keys: ['id']
+Replication strategy: INCREMENTAL
 
-** [pipeline_stages](https://developer.copper.com/opportunities/list-pipeline-stages.html)**
-- Data Key = root
-- Primary keys: ['id']
-- Replication strategy: FULL_TABLE
+**[pipeline_stages]**
+(https://developer.copper.com/opportunities/list-pipeline-stages.html)
+Data Key = root
+Primary keys: ['id']
+Replication strategy: FULL_TABLE
 
-** [pipelines](https://developer.copper.com/opportunities/list-pipelines.html)**
-- Data Key = root
-- Primary keys: ['id']
-- Replication strategy: FULL_TABLE
+**[pipelines]**
+(https://developer.copper.com/opportunities/list-pipelines.html)
+Data Key = root
+Primary keys: ['id']
+Replication strategy: FULL_TABLE
 
-** [projects](https://developer.copper.com/projects/list-projects-search.html)**
-- Primary keys: ['id']
-- Replication strategy: INCREMENTAL
+**[projects]**
+(https://developer.copper.com/projects/list-projects-search.html)
+Primary keys: ['id']
+Replication strategy: INCREMENTAL
 
-** [tags](https://developer.copper.com/tags/list-tags.html)**
-- Data Key = root
-- Primary keys: ['name']
-- Replication strategy: FULL_TABLE
+**[tags]**
+(https://developer.copper.com/tags/list-tags.html)
+Data Key = root
+Primary keys: ['name']
+Replication strategy: FULL_TABLE
 
-** [tasks](https://developer.copper.com/tasks/list-tasks-search.html)**
-- Primary keys: ['id']
-- Replication strategy: INCREMENTAL
+**[tasks]**
+(https://developer.copper.com/tasks/list-tasks-search.html)
+Primary keys: ['id']
+Replication strategy: INCREMENTAL
 
-** [users](https://developer.copper.com/account-and-users/list-users.html)**
-- Primary keys: ['id']
-- Replication strategy: FULL_TABLE
+**[users]**
+(https://developer.copper.com/account-and-users/list-users.html)
+Primary keys: ['id']
+Replication strategy: FULL_TABLE
 
 
 
