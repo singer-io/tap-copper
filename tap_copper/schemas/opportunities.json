@@ -1,1 +1,206 @@
-{}
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "name": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "assignee_id": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "close_date": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "company_id": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "company_name": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "customer_source_id": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "details": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "loss_reason_id": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "pipeline_id": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "pipeline_is_revenue": {
+      "type": [
+        "null",
+        "boolean"
+      ]
+    },
+    "pipeline_stage_id": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "pipeline_type": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "primary_contact_id": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "priority": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "status": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "tags": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "type": [
+          "null",
+          "string"
+        ]
+      }
+    },
+    "interaction_count": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "monetary_unit": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "monetary_value": {
+      "type": [
+        "null",
+        "number"
+      ]
+    },
+    "converted_unit": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "converted_value": {
+      "type": [
+        "null",
+        "number"
+      ]
+    },
+    "win_probability": {
+      "type": [
+        "null",
+        "number"
+      ]
+    },
+    "date_stage_changed": {
+      "type": [
+        "null",
+        "number"
+      ]
+    },
+    "date_last_contacted": {
+      "type": [
+        "null",
+        "number"
+      ]
+    },
+    "leads_converted_from": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "type": [
+          "null",
+          "integer",
+          "string"
+        ]
+      }
+    },
+    "date_lead_created": {
+      "type": [
+        "null",
+        "number"
+      ]
+    },
+    "date_created": {
+      "type": [
+        "null",
+        "number"
+      ]
+    },
+    "date_modified": {
+      "type": [
+        "null",
+        "number"
+      ]
+    },
+    "custom_fields": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "type": [
+          "null",
+          "object"
+        ],
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

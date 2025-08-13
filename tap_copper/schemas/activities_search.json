@@ -1,1 +1,115 @@
-{}
+{
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "id": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "type": {
+      "type": [
+        "null",
+        "object"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "type": [
+            "null",
+            "integer"
+          ]
+        },
+        "category": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "name": {
+          "type": [
+            "null",
+            "string"
+          ]
+        }
+      }
+    },
+    "parent": {
+      "type": [
+        "null",
+        "object"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "type": [
+            "null",
+            "integer"
+          ]
+        },
+        "type": {
+          "type": [
+            "null",
+            "string"
+          ]
+        }
+      }
+    },
+    "details": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "user_id": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "activity_date": {
+      "type": [
+        "null",
+        "integer",
+        "string"
+      ]
+    },
+    "old_value": {
+      "type": [
+        "null",
+        "object",
+        "string",
+        "number",
+        "integer",
+        "boolean",
+        "array"
+      ]
+    },
+    "new_value": {
+      "type": [
+        "null",
+        "object",
+        "string",
+        "number",
+        "integer",
+        "boolean",
+        "array"
+      ]
+    },
+    "date_created": {
+      "type": [
+        "null",
+        "integer",
+        "string"
+      ]
+    },
+    "date_modified": {
+      "type": [
+        "null",
+        "integer",
+        "string"
+      ]
+    }
+  }
+}

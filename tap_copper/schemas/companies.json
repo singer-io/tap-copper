@@ -1,1 +1,205 @@
-{}
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "name": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "address": {
+      "type": [
+        "null",
+        "object"
+      ],
+      "properties": {
+        "street": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "city": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "state": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "postal_code": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "country": {
+          "type": [
+            "null",
+            "string"
+          ]
+        }
+      }
+    },
+    "assignee_id": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "contact_type_id": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "details": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "email_domain": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "phone_numbers": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "type": [
+          "null",
+          "object"
+        ],
+        "properties": {
+          "number": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "category": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      }
+    },
+    "primary_contact_id": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "socials": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "type": [
+          "null",
+          "object"
+        ],
+        "properties": {
+          "url": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "category": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      }
+    },
+    "tags": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "type": [
+          "null",
+          "string"
+        ]
+      }
+    },
+    "websites": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "type": [
+          "null",
+          "object"
+        ],
+        "properties": {
+          "url": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "category": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      }
+    },
+    "custom_fields": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "type": [
+          "null",
+          "object"
+        ]
+      }
+    },
+    "interaction_count": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "date_created": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "date_modified": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    }
+  }
+}

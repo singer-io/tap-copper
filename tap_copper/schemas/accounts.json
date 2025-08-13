@@ -1,0 +1,45 @@
+{
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": [
+                "null",
+                "integer"
+            ]
+        },
+        "name": {
+            "type": [
+                "null",
+                "string"
+            ]
+        },
+        "primary_timezone": {
+            "type": [
+                "null",
+                "string"
+            ]
+        },
+        "settings": {
+            "type": [
+                "null",
+                "object"
+            ],
+            "properties": {
+                "setting_team_permissions_enabled": {
+                    "type": [
+                        "null",
+                        "boolean"
+                    ]
+                },
+                "setting_enable_leads": {
+                    "type": [
+                        "null",
+                        "boolean"
+                    ]
+                }
+            },
+            "additionalProperties": true
+        }
+    },
+    "additionalProperties": true
+}

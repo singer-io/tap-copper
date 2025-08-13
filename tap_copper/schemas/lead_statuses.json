@@ -1,1 +1,30 @@
-{}
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "name": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "order": {
+      "type": [
+        "null",
+        "number"
+      ]
+    },
+    "is_default": {
+      "type": [
+        "null",
+        "boolean"
+      ]
+    }
+  },
+  "additionalProperties": true
+}
