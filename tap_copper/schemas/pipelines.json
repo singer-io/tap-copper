@@ -1,1 +1,63 @@
-{}
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "name": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "stages": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "type": [
+          "null",
+          "object"
+        ],
+        "properties": {
+          "id": {
+            "type": [
+              "null",
+              "integer"
+            ]
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "win_probability": {
+            "type": [
+              "null",
+              "number"
+            ]
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "type": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "is_revenue": {
+      "type": [
+        "null",
+        "boolean"
+      ]
+    }
+  },
+  "additionalProperties": true
+}
