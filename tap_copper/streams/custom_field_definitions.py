@@ -4,5 +4,7 @@ class CustomFieldDefinitions(FullTableStream):
     tap_stream_id = "custom_field_definitions"
     key_properties = ["id"]
     replication_method = "FULL_TABLE"
-    data_key = "root"
+
+    http_method = "GET"
     path = "custom_field_definitions"
+    data_key = "custom_field_definitions"

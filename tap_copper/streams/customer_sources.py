@@ -4,5 +4,7 @@ class CustomerSources(FullTableStream):
     tap_stream_id = "customer_sources"
     key_properties = ["id"]
     replication_method = "FULL_TABLE"
-    data_key = "root"
+
+    http_method = "GET"
     path = "customer_sources"
+    data_key = "customer_sources"  # if API returns {"customer_sources": [...]}
