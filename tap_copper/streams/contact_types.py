@@ -4,5 +4,7 @@ class ContactTypes(FullTableStream):
     tap_stream_id = "contact_types"
     key_properties = ["id"]
     replication_method = "FULL_TABLE"
-    data_key = "root"
+
+    http_method = "GET"
     path = "contact_types"
+    data_key = "contact_types"

@@ -1,105 +1,143 @@
-class copperError(Exception):
-    """class representing Generic Http error."""
+"""Custom Copper API exception classes mapping to HTTP error codes."""
+
+class CopperError(Exception):
+    """Class representing a generic HTTP error."""
 
     def __init__(self, message=None, response=None):
-        super().__init__(message)
-        self.message = message
+        msg = message or "An error occurred with the Copper API."
+        super().__init__(msg)
+        self.message = msg
         self.response = response
 
 
-class copperBackoffError(copperError):
-    """class representing backoff error handling."""
-    pass
-
-class copperBadRequestError(copperError):
-    """class representing 400 status code."""
-    pass
-
-class copperUnauthorizedError(copperError):
-    """class representing 401 status code."""
-    pass
+class CopperBackoffError(CopperError):
+    """Class representing a backoff/retry error."""
 
 
-class copperForbiddenError(copperError):
-    """class representing 403 status code."""
-    pass
+class CopperBadRequestError(CopperError):
+    """Class representing 400 status code (Bad Request)."""
 
-class copperNotFoundError(copperError):
-    """class representing 404 status code."""
-    pass
 
-class copperConflictError(copperError):
-    """class representing 406 status code."""
-    pass
+class CopperUnauthorizedError(CopperError):
+    """Class representing 401 status code (Unauthorized)."""
 
-class copperUnprocessableEntityError(copperBackoffError):
-    """class representing 409 status code."""
-    pass
 
-class copperRateLimitError(copperBackoffError):
-    """class representing 429 status code."""
-    pass
+class CopperForbiddenError(CopperError):
+    """Class representing 403 status code (Forbidden)."""
 
-class copperInternalServerError(copperBackoffError):
-    """class representing 500 status code."""
-    pass
 
-class copperNotImplementedError(copperBackoffError):
-    """class representing 501 status code."""
-    pass
+class CopperNotFoundError(CopperError):
+    """Class representing 404 status code (Not Found)."""
 
-class copperBadGatewayError(copperBackoffError):
-    """class representing 502 status code."""
-    pass
 
-class copperServiceUnavailableError(copperBackoffError):
-    """class representing 503 status code."""
-    pass
+class CopperConflictError(CopperError):
+    """Class representing 409 status code (Conflict)."""
+
+
+class CopperUnprocessableEntityError(CopperBackoffError):
+    """Class representing 422 status code (Unprocessable Entity)."""
+
+
+class CopperRateLimitError(CopperBackoffError):
+    """Class representing 429 status code (Too Many Requests / Rate Limit)."""
+
+    def __init__(self, message=None, response=None):
+        """Initialize CopperRateLimitError and parse Retry-After header if present."""
+        self.response = response
+        retry_after = None
+        if response and hasattr(response, "headers"):
+            raw_retry = response.headers.get("Retry-After")
+            if raw_retry:
+                try:
+                    retry_after = int(raw_retry)
+                except ValueError:
+                    retry_after = None
+
+        self.retry_after = retry_after
+        base_msg = message or "Rate limit hit"
+        retry_info = (
+            f"(Retry after {self.retry_after} seconds.)"
+            if self.retry_after is not None
+            else "(Retry after unknown delay.)"
+        )
+        full_message = f"{base_msg} {retry_info}"
+        super().__init__(full_message, response=response)
+
+
+class CopperInternalServerError(CopperBackoffError):
+    """Class representing 500 status code (Internal Server Error)."""
+
+
+class CopperNotImplementedError(CopperBackoffError):
+    """Class representing 501 status code (Not Implemented)."""
+
+
+class CopperBadGatewayError(CopperBackoffError):
+    """Class representing 502 status code (Bad Gateway)."""
+
+
+class CopperServiceUnavailableError(CopperBackoffError):
+    """Class representing 503 status code (Service Unavailable)."""
+
 
 ERROR_CODE_EXCEPTION_MAPPING = {
     400: {
-        "raise_exception": copperBadRequestError,
-        "message": "A validation exception has occurred."
+        "raise_exception": CopperBadRequestError,
+        "message": "A validation exception has occurred.",
     },
     401: {
-        "raise_exception": copperUnauthorizedError,
-        "message": "The access token provided is expired, revoked, malformed or invalid for other reasons."
+        "raise_exception": CopperUnauthorizedError,
+        "message": (
+            "The access token provided is expired, revoked, malformed or "
+            "invalid for other reasons."
+        ),
     },
     403: {
-        "raise_exception": copperForbiddenError,
-        "message": "You are missing the following required scopes: read"
+        "raise_exception": CopperForbiddenError,
+        "message": "You are missing the following required scopes: read",
     },
     404: {
-        "raise_exception": copperNotFoundError,
-        "message": "The resource you have specified cannot be found."
+        "raise_exception": CopperNotFoundError,
+        "message": "The resource you have specified cannot be found.",
     },
     409: {
-        "raise_exception": copperConflictError,
-        "message": "The API request cannot be completed because the requested operation would conflict with an existing item."
+        "raise_exception": CopperConflictError,
+        "message": (
+            "The API request cannot be completed because the requested "
+            "operation would conflict with an existing item."
+        ),
     },
     422: {
-        "raise_exception": copperUnprocessableEntityError,
-        "message": "The request content itself is not processable by the server."
+        "raise_exception": CopperUnprocessableEntityError,
+        "message": "The request content itself is not processable by the server.",
     },
     429: {
-        "raise_exception": copperRateLimitError,
-        "message": "The API rate limit for your organisation/application pairing has been exceeded."
+        "raise_exception": CopperRateLimitError,
+        "message": (
+            "The API rate limit for your organisation/application pairing "
+            "has been exceeded."
+        ),
     },
     500: {
-        "raise_exception": copperInternalServerError,
-        "message": "The server encountered an unexpected condition which prevented" \
-            " it from fulfilling the request."
+        "raise_exception": CopperInternalServerError,
+        "message": (
+            "The server encountered an unexpected condition which prevented "
+            "it from fulfilling the request."
+        ),
     },
     501: {
-        "raise_exception": copperNotImplementedError,
-        "message": "The server does not support the functionality required to fulfill the request."
+        "raise_exception": CopperNotImplementedError,
+        "message": (
+            "The server does not support the functionality required to "
+            "fulfill the request."
+        ),
     },
     502: {
-        "raise_exception": copperBadGatewayError,
-        "message": "Server received an invalid response."
+        "raise_exception": CopperBadGatewayError,
+        "message": "Server received an invalid response.",
     },
     503: {
-        "raise_exception": copperServiceUnavailableError,
-        "message": "API service is currently unavailable."
-    }
+        "raise_exception": CopperServiceUnavailableError,
+        "message": "API service is currently unavailable.",
+    },
 }

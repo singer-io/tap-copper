@@ -4,5 +4,7 @@ class Pipelines(FullTableStream):
     tap_stream_id = "pipelines"
     key_properties = ["id"]
     replication_method = "FULL_TABLE"
-    data_key = "root"
+
+    http_method = "GET"
     path = "pipelines"
+    data_key = "pipelines"
