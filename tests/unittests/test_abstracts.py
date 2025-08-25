@@ -1,5 +1,6 @@
 # tests/unittests/test_abstracts.py
 
+from __future__ import annotations
 from typing import Dict, List, Any, Iterable
 from unittest.mock import MagicMock, patch
 import pytest
