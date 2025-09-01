@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Tuple, List, Iterator
+from typing import Any, Dict, Tuple, List, Iterator, Optional
 from singer import (
     Transformer,
     get_bookmark,
@@ -84,8 +84,6 @@ class BaseStream(ABC):
 
     def get_records(self) -> Iterator:
         """Generic API interaction + pagination loop."""
-        # Keep generator behavior; harmless even if unused.
-        self.params[""] = self.page_size
         next_page = 1
         while next_page:
             response = self.client.make_request(
@@ -124,6 +122,7 @@ class BaseStream(ABC):
     def get_url_endpoint(self, parent_obj: Dict = None) -> str:
         """Build URL endpoint with safe slash handling."""
         return self.url_endpoint or f"{self.client.base_url}/{str(self.path).lstrip('/')}"
+
 
 class IncrementalStream(BaseStream):
     """Base Class for Incremental Stream."""
@@ -239,14 +238,17 @@ class ParentBaseStream(IncrementalStream):
 class ChildBaseStream(IncrementalStream):
     """Base Class for Child Stream."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Ensure attribute exists to avoid hasattr checks later
+        self.bookmark_value: Optional[int] = None
+
     def get_url_endpoint(self, parent_obj=None):
         """Prepare URL endpoint for child streams."""
         return f"{self.client.base_url}/{self.path.format(parent_obj['id'])}"
 
     def get_bookmark(self, state: Dict, stream: str, key: Any = None) -> int:
         """Singleton bookmark value for child streams."""
-        if not hasattr(self, "bookmark_value"):
-            self.bookmark_value = None
-        if not self.bookmark_value:
+        if self.bookmark_value is None:
             self.bookmark_value = super().get_bookmark(state, stream)
         return self.bookmark_value

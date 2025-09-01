@@ -8,8 +8,8 @@ class Opportunities(ChildBaseStream):
     replication_keys = ["date_modified"]
 
     http_method = "POST"
-    path = "opportunities/search"   # filter via body: company_ids=[...]
-    data_key = None                 # top-level array
+    path = "opportunities/search"
+    data_key = None
     page_size = 200
 
     def get_url_endpoint(self, parent_obj=None):
@@ -26,7 +26,6 @@ class Opportunities(ChildBaseStream):
             "sort_direction": "asc",
             "minimum_modified_date": bm,
         }
-        # >>> Keep consistent with People: array form
         if parent_obj and "id" in parent_obj:
             body["company_ids"] = [parent_obj["id"]]
 
@@ -50,7 +49,6 @@ class Opportunities(ChildBaseStream):
             return counter.value
 
     def get_records(self):
-        self.params.pop("", None)
         while True:
             resp = self.client.make_request(
                 self.http_method,

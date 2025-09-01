@@ -7,7 +7,7 @@ class Users(FullTableStream):
 
     http_method = "POST"
     path = "users/search"
-    data_key = None         # top-level array
+    data_key = None
     page_size = 200
 
     def get_records(self):
