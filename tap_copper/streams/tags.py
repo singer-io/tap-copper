@@ -1,4 +1,7 @@
+"""Tags (full-table)."""
+
 from tap_copper.streams.abstracts import FullTableStream
+
 
 class Tags(FullTableStream):
     tap_stream_id = "tags"

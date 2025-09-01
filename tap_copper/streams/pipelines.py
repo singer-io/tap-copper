@@ -1,4 +1,7 @@
+"""Pipelines (full-table)."""
+
 from tap_copper.streams.abstracts import FullTableStream
+
 
 class Pipelines(FullTableStream):
     tap_stream_id = "pipelines"

@@ -1,4 +1,7 @@
+"""Contact types (full-table)."""
+
 from tap_copper.streams.abstracts import FullTableStream
+
 
 class ContactTypes(FullTableStream):
     tap_stream_id = "contact_types"
