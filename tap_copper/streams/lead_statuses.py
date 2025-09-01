@@ -1,4 +1,7 @@
+"""Lead statuses (full-table)."""
+
 from tap_copper.streams.abstracts import FullTableStream
+
 
 class LeadStatuses(FullTableStream):
     tap_stream_id = "lead_statuses"

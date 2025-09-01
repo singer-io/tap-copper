@@ -1,5 +1,8 @@
+"""People (child incremental; filters via body)."""
+
+from typing import Optional, Dict, Any
 from tap_copper.streams.abstracts import ChildBaseStream
-from singer import metrics, write_record
+
 
 class People(ChildBaseStream):
     tap_stream_id = "people"
@@ -8,64 +11,15 @@ class People(ChildBaseStream):
     replication_keys = ["date_modified"]
 
     http_method = "POST"
-    path = "people/search"
+    path = "people/search"  # body-based search
     data_key = None
     page_size = 200
 
-    def get_url_endpoint(self, parent_obj=None):
-        # Plain search endpoint (no {} formatting)
+    def get_url_endpoint(self, parent_obj: Optional[Dict[str, Any]] = None) -> str:
+        """Plain search endpoint (no path formatting)."""
         return f"{self.client.base_url}/{self.path}"
 
-    def sync(self, state, transformer, parent_obj=None):
-        bm = self.get_bookmark(state, self.tap_stream_id)
-        current_max = bm
-
-        # Build the POST body
-        body = {
-            "page_size": self.page_size,
-            "page_number": 1,
-            "sort_by": "date_modified",
-            "sort_direction": "asc",
-            "minimum_modified_date": bm,
-        }
+    def update_parent_filters(self, parent_obj: Optional[Dict[str, Any]]) -> None:
+        """Inject company_ids filter from parent object."""
         if parent_obj and "id" in parent_obj:
-            body["company_ids"] = [parent_obj["id"]]
-
-        self.params.clear()
-        self.data_payload.clear()
-        self.update_data_payload(**body)
-        self.url_endpoint = self.get_url_endpoint(parent_obj)
-
-        with metrics.record_counter(self.tap_stream_id) as counter:
-            for rec in self.get_records():
-                tr = transformer.transform(rec, self.schema, self.metadata)
-                val = tr.get(self.replication_keys[0])
-                if val is not None and val >= bm:
-                    if self.is_selected():
-                        write_record(self.tap_stream_id, tr)
-                        counter.increment()
-                    if val > current_max:
-                        current_max = val
-
-            state = self.write_bookmark(state, self.tap_stream_id, value=current_max)
-            return counter.value
-
-    def get_records(self):
-        while True:
-            resp = self.client.make_request(
-                self.http_method,
-                self.get_url_endpoint(),
-                self.params,
-                self.headers,
-                body=self.data_payload,
-                path=self.path,
-            )
-            items = resp if isinstance(resp, list) else []
-            for it in items:
-                yield it
-
-            if len(items) < self.page_size:
-                break
-
-            next_page = int(self.data_payload.get("page_number", 1)) + 1
-            self.update_data_payload(page_number=next_page)
+            self.update_data_payload(company_ids=[parent_obj["id"]])

@@ -1,4 +1,7 @@
+"""Loss reasons (full-table)."""
+
 from tap_copper.streams.abstracts import FullTableStream
+
 
 class LossReasons(FullTableStream):
     tap_stream_id = "loss_reasons"

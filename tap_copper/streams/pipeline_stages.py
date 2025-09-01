@@ -1,4 +1,9 @@
+"""Pipeline stages (full-table via search)."""
+
+from typing import Optional, Dict, Any
 from tap_copper.streams.abstracts import FullTableStream
+from singer import metrics, write_record
+
 
 class PipelineStages(FullTableStream):
     tap_stream_id = "pipeline_stages"
@@ -10,15 +15,19 @@ class PipelineStages(FullTableStream):
     data_key = None
     page_size = 200
 
-    def get_url_endpoint(self, parent_obj=None):
-        # Plain search endpoint (no {} formatting)
+    def get_url_endpoint(self, parent_obj: Optional[Dict[str, Any]] = None) -> str:
+        """Plain search endpoint (no path formatting)."""
         return f"{self.client.base_url}/{self.path}"
 
-    def sync(self, state, transformer, parent_obj=None):
-        # Build body; if called as a child, include the parent pipeline id
+    def sync(  # minimal override to inject parent filter; still uses base get_records()
+        self,
+        state: Dict[str, Any],
+        transformer,
+        parent_obj: Optional[Dict[str, Any]] = None,
+    ) -> int:
         self.params.clear()
         self.data_payload.clear()
-        body = {
+        body: Dict[str, Any] = {
             "page_size": self.page_size,
             "page_number": 1,
         }
@@ -27,30 +36,10 @@ class PipelineStages(FullTableStream):
         self.update_data_payload(**body)
         self.url_endpoint = self.get_url_endpoint(parent_obj)
 
-        from singer import metrics, write_record
         with metrics.record_counter(self.tap_stream_id) as counter:
-            for rec in self.get_records():
-                tr = transformer.transform(rec, self.schema, self.metadata)
+            for record in self.get_records():
+                transformed = transformer.transform(record, self.schema, self.metadata)
                 if self.is_selected():
-                    write_record(self.tap_stream_id, tr)
+                    write_record(self.tap_stream_id, transformed)
                     counter.increment()
             return counter.value
-
-    def get_records(self):
-        while True:
-            resp = self.client.make_request(
-                self.http_method,
-                self.url_endpoint,
-                self.params,
-                self.headers,
-                body=self.data_payload,
-                path=self.path,
-            )
-            items = resp if isinstance(resp, list) else []
-            for it in items:
-                yield it
-
-            if len(items) < self.page_size:
-                break
-            next_page = int(self.data_payload.get("page_number", 1)) + 1
-            self.update_data_payload(page_number=next_page)

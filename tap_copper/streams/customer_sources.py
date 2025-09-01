@@ -1,4 +1,7 @@
+"""Customer sources (full-table)."""
+
 from tap_copper.streams.abstracts import FullTableStream
+
 
 class CustomerSources(FullTableStream):
     tap_stream_id = "customer_sources"
@@ -7,4 +10,4 @@ class CustomerSources(FullTableStream):
 
     http_method = "GET"
     path = "customer_sources"
-    data_key = "customer_sources"  # if API returns {"customer_sources": [...]}
+    data_key = "customer_sources"
