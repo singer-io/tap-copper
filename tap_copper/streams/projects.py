@@ -39,7 +39,6 @@ class Projects(IncrementalStream):
             return counter.value
 
     def get_records(self):
-        self.params.pop("", None)
         while True:
             resp = self.client.make_request(
                 self.http_method, self.url_endpoint, self.params, self.headers, body=self.data_payload, path=self.path

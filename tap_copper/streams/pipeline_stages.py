@@ -5,10 +5,9 @@ class PipelineStages(FullTableStream):
     key_properties = ["id"]
     replication_method = "FULL_TABLE"
 
-    # Use POST search, not a nested GET path
     http_method = "POST"
     path = "pipeline_stages/search"
-    data_key = None          # top-level array
+    data_key = None
     page_size = 200
 
     def get_url_endpoint(self, parent_obj=None):
@@ -22,9 +21,6 @@ class PipelineStages(FullTableStream):
         body = {
             "page_size": self.page_size,
             "page_number": 1,
-            # add sort if supported by your API:
-            # "sort_by": "id",
-            # "sort_direction": "asc",
         }
         if parent_obj and "id" in parent_obj:
             body["pipeline_id"] = parent_obj["id"]
@@ -41,15 +37,13 @@ class PipelineStages(FullTableStream):
             return counter.value
 
     def get_records(self):
-        # simple page_number/page_size loop
-        self.params.pop("", None)
         while True:
             resp = self.client.make_request(
                 self.http_method,
                 self.url_endpoint,
                 self.params,
                 self.headers,
-                body=self.data_payload,   # dict; client sends json=...
+                body=self.data_payload,
                 path=self.path,
             )
             items = resp if isinstance(resp, list) else []

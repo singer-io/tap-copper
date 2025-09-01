@@ -38,7 +38,6 @@ class Companies(IncrementalStream):
                     if val > current_max:
                         current_max = val
 
-                    # >>> call children (only if they’re selected) <<<
                     for child in getattr(self, "child_to_sync", []):
                         if hasattr(child, "is_selected") and child.is_selected():
                             child.sync(state=state, transformer=transformer, parent_obj=tr)
@@ -47,7 +46,6 @@ class Companies(IncrementalStream):
             return counter.value
 
     def get_records(self):
-        self.params.pop("", None)
         while True:
             resp = self.client.make_request(
                 self.http_method,

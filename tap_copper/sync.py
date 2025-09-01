@@ -33,7 +33,14 @@ def _instantiate_stream(cls: Type[Any], client: Client, cat_stream: Any) -> Any:
     """
     try:
         return cls(client, cat_stream)
-    except TypeError:
+    except TypeError as exc:
+        LOGGER.warning(
+            "TypeError when instantiating %s(client, catalog_stream): %s. "
+            "Falling back to no-arg constructor.",
+            getattr(cls, "__name__", str(cls)),
+            exc,
+            exc_info=True,
+        )
         inst = cls()
         if hasattr(inst, "configure") and callable(getattr(inst, "configure")):
             inst.configure(client, cat_stream)
