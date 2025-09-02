@@ -21,7 +21,7 @@ def _instantiate_stream(cls: Any, client: Any, cat_stream: Any) -> Any:
     except TypeError as exc:
         raise TypeError(
             f"{getattr(cls, '__name__', str(cls))} must implement "
-            "__init__(client, catalog_stream); got TypeError: {exc}"
+            "__init__(client, catalog_stream); got {type(exc).__name__}: {exc}"
         ) from exc
 
 
