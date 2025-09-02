@@ -1,5 +1,3 @@
-"""Account stream (single object)."""
-
 from typing import Dict, Iterator, Any
 from tap_copper.streams.abstracts import FullTableStream
 
@@ -11,7 +9,7 @@ class Account(FullTableStream):
 
     http_method = "GET"
     path = "account"
-    data_key = None  # single object at top level
+    data_key = None
 
     def get_records(self) -> Iterator[Dict[str, Any]]:
         """Emit the single account object once."""

@@ -1,5 +1,3 @@
-"""Pipeline stages (full-table via search)."""
-
 from typing import Optional, Dict, Any
 from tap_copper.streams.abstracts import FullTableStream
 from singer import metrics, write_record
@@ -7,7 +5,7 @@ from singer import metrics, write_record
 
 class PipelineStages(FullTableStream):
     tap_stream_id = "pipeline_stages"
-    key_properties = ["id"]
+    key_properties = ("id",)
     replication_method = "FULL_TABLE"
 
     http_method = "POST"
@@ -25,8 +23,9 @@ class PipelineStages(FullTableStream):
         transformer,
         parent_obj: Optional[Dict[str, Any]] = None,
     ) -> int:
-        self.params.clear()
-        self.data_payload.clear()
+        # Preserve any defaults; do not wipe class-initialized params/body
+        self.reset_request()
+
         body: Dict[str, Any] = {
             "page_size": self.page_size,
             "page_number": 1,

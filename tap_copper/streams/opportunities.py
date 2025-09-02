@@ -1,17 +1,15 @@
-"""Opportunities (child incremental; filters via body)."""
-
 from typing import Optional, Dict, Any
 from tap_copper.streams.abstracts import ChildBaseStream
 
 
 class Opportunities(ChildBaseStream):
     tap_stream_id = "opportunities"
-    key_properties = ["id"]
+    key_properties = ("id",)
     replication_method = "INCREMENTAL"
     replication_keys = ["date_modified"]
 
     http_method = "POST"
-    path = "opportunities/search"  # body-based search
+    path = "opportunities/search"
     data_key = None
     page_size = 200
 

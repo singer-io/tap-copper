@@ -1,11 +1,9 @@
-"""Users (full-table via search)."""
-
 from tap_copper.streams.abstracts import FullTableStream
 
 
 class Users(FullTableStream):
     tap_stream_id = "users"
-    key_properties = ["id"]
+    key_properties = ("id",)
     replication_method = "FULL_TABLE"
 
     http_method = "POST"

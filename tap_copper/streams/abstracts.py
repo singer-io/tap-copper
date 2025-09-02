@@ -2,8 +2,10 @@
 
 Centralizes:
 - Pagination loop (list responses and dict+data_key)
-- Incremental sync with bookmarking and sorted asc by replication key
+- Incremental sync with bookmarking and sorted ASC by replication key
 - Parent/child hooks to inject body filters without duplicating sync code
+- Safe reset of params/body preserving class defaults
+- Type-safe bookmark writes to avoid mixed-type max() errors
 """
 
 from abc import ABC, abstractmethod
@@ -13,17 +15,17 @@ from singer import (
     Transformer,
     get_bookmark,
     get_logger,
+    metadata,
     metrics,
     write_bookmark,
     write_record,
     write_schema,
-    metadata,
 )
 
 LOGGER = get_logger()
 
 
-class BaseStream(ABC):
+class BaseStream(ABC):  # pylint: disable=too-many-instance-attributes
     """Base class for all streams."""
 
     # Request configuration (override per-stream where needed)
@@ -53,6 +55,10 @@ class BaseStream(ABC):
         self.child_to_sync: List["BaseStream"] = []
         self.params: Dict[str, Any] = {}
         self.data_payload: Dict[str, Any] = {}
+        # Defaults preserved across resets (can be overridden per stream)
+        self.default_params: Dict[str, Any] = {}
+        self.default_body: Dict[str, Any] = {}
+
 
     @property
     @abstractmethod
@@ -74,6 +80,7 @@ class BaseStream(ABC):
     def key_properties(self) -> Tuple[str, ...]:
         """Primary key field(s) for the stream."""
 
+
     def is_selected(self) -> bool:
         """Return whether this stream is selected in the catalog."""
         return bool(metadata.get(self.metadata, (), "selected"))
@@ -87,9 +94,7 @@ class BaseStream(ABC):
     ) -> int:
         """Perform the replication sync."""
 
-    # ------------------
-    # Core HTTP + paging
-    # ------------------
+
     def _extract_items(self, response: Any) -> List[Dict[str, Any]]:
         """Normalize API responses into a list of records."""
         if isinstance(response, list):
@@ -103,6 +108,13 @@ class BaseStream(ABC):
         """Increment body page number (when API uses body-based pagination)."""
         next_page = int(self.data_payload.get("page_number", 1)) + 1
         self.update_data_payload(page_number=next_page)
+
+    def reset_request(self) -> None:
+        """Reset params/body to known defaults (not empty dicts)."""
+        self.params.clear()
+        self.params.update(self.default_params)
+        self.data_payload.clear()
+        self.data_payload.update(self.default_body)
 
     def get_records(self) -> Iterator[Dict[str, Any]]:
         """
@@ -122,7 +134,7 @@ class BaseStream(ABC):
                 self.url_endpoint,
                 self.params,
                 self.headers,
-                body=self.data_payload,  # dict -> requests(..., json=body)
+                body=self.data_payload,
                 path=self.path,
             )
 
@@ -145,9 +157,7 @@ class BaseStream(ABC):
 
             break
 
-    # ------------------
-    # Singer helpers
-    # ------------------
+
     def write_schema(self) -> None:
         """Emit schema for this stream."""
         try:
@@ -164,9 +174,7 @@ class BaseStream(ABC):
         """Update JSON body for the request."""
         self.data_payload.update(kwargs)
 
-    # ------------------
-    # Hooks / overrides
-    # ------------------
+
     def modify_object(
         self,
         record: Dict[str, Any],
@@ -180,7 +188,7 @@ class BaseStream(ABC):
         Hook for child streams to inject parent filters into the request body.
         Example: self.update_data_payload(company_ids=[parent_obj["id"]])
         """
-        _ = parent_obj  # placeholder to keep pylint happy; override in child streams
+        _ = parent_obj  # placeholder
 
     def get_url_endpoint(self, parent_obj: Optional[Dict[str, Any]] = None) -> str:
         """Build URL endpoint with safe slash handling."""
@@ -193,6 +201,14 @@ class BaseStream(ABC):
 class IncrementalStream(BaseStream):
     """Base class for incremental streams (centralized incremental sync)."""
 
+    @staticmethod
+    def _to_int(val: Any) -> int:
+        """Best-effort int coercion for bookmarks; returns 0 on failure."""
+        try:
+            return int(val)
+        except (TypeError, ValueError):
+            return 0
+
     def get_bookmark(
         self,
         state: Dict[str, Any],
@@ -204,24 +220,26 @@ class IncrementalStream(BaseStream):
             state,
             stream,
             key or self.replication_keys[0],
-            self.client.config["start_date"],  # numeric epoch per schema
+            self.client.config["start_date"],
         )
 
-    def write_bookmark(  # noqa: D401 (Singer-compatible signature)
+    def write_bookmark(
         self,
         state: Dict[str, Any],
         stream: str,
         key: Optional[str] = None,
         value: Optional[int] = None,
     ) -> Dict[str, Any]:
-        """Write bookmark using the max of current and new values."""
+        """Write bookmark using the max of current and new values (type-safe)."""
         if not (key or self.replication_keys):
             return state
-        current = get_bookmark(
-            state, stream, key or self.replication_keys[0], self.client.config["start_date"]
-        )
-        new_val = max(current, value) if value is not None else current
-        return write_bookmark(state, stream, key or self.replication_keys[0], new_val)
+        rk = key or self.replication_keys[0]
+        current_raw = get_bookmark(state, stream, rk, self.client.config["start_date"])
+        current = self._to_int(current_raw)
+        new_val = current
+        if value is not None:
+            new_val = max(current, self._to_int(value))
+        return write_bookmark(state, stream, rk, new_val)
 
     def _prepare_first_request(
         self,
@@ -230,10 +248,9 @@ class IncrementalStream(BaseStream):
         parent_obj: Optional[Dict[str, Any]],
     ) -> None:
         """Reset params/body and set first-page filters for incremental sync."""
-        self.params.clear()
-        self.data_payload.clear()
+        self.reset_request()
 
-        # Base pagination + sorting on replication key
+        # Base pagination and sorting on replication key
         self.update_data_payload(
             page_size=self.page_size,
             page_number=1,
@@ -249,7 +266,7 @@ class IncrementalStream(BaseStream):
 
         self.url_endpoint = self.get_url_endpoint(parent_obj)
 
-    def sync(  # noqa: D401 (Singer-compatible signature)
+    def sync(
         self,
         state: Dict[str, Any],
         transformer: Transformer,
@@ -323,10 +340,7 @@ class ParentBaseStream(IncrementalStream):
     ) -> int:
         """Minimum of parent’s own bookmark and child bookmarks (if selected)."""
         min_parent = super().get_bookmark(state, stream)
-        if self.is_selected():
-            # parent’s own bookmark already considered
-            pass
-        else:
+        if not self.is_selected():
             min_parent = None
 
         for child in self.child_to_sync:
@@ -336,7 +350,7 @@ class ParentBaseStream(IncrementalStream):
 
         return min_parent
 
-    def write_bookmark(  # noqa: D401
+    def write_bookmark(
         self,
         state: Dict[str, Any],
         stream: str,
@@ -372,13 +386,13 @@ class ChildBaseStream(IncrementalStream):
 
     def update_parent_filters(self, parent_obj: Optional[Dict[str, Any]]) -> None:
         """
-        Default no-op. Override in child streams that filter by parent via body, e.g.:
+        Override in child streams that filter by parent via body, e.g.:
             if parent_obj and "id" in parent_obj:
                 self.update_data_payload(company_ids=[parent_obj["id"]])
         """
         _ = parent_obj
 
-    def get_bookmark(  # noqa: D401
+    def get_bookmark(
         self,
         state: Dict[str, Any],
         stream: str,
