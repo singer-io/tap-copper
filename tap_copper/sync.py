@@ -1,150 +1,124 @@
-"""Sync logic for tap-copper: selection, schema writing, and record syncing.
+"""Sync orchestration for tap-copper."""
 
-- Handles parent/child stream wiring.
-- Writes schemas (recursively) for selected streams.
-- Runs parents, which in turn invoke their children.
-"""
-
-from typing import Any, Dict, List, MutableMapping, Optional, Set, Type
-
+from typing import Any, Dict, Iterable, List, Tuple
 import singer
+from singer import Transformer, metadata
 
-from tap_copper.client import Client
 from tap_copper.streams import STREAMS
 
 LOGGER = singer.get_logger()
 
 
-def update_currently_syncing(
-    state: MutableMapping[str, Any],
-    stream_name: Optional[str],
-) -> None:
-    """Update `currently_syncing` in state and write it."""
-    if not stream_name and singer.get_currently_syncing(state):
-        state.pop("currently_syncing", None)
-    else:
-        singer.set_currently_syncing(state, stream_name)
-    singer.write_state(state)
-
-
-def _instantiate_stream(cls: Type[Any], client: Client, cat_stream: Any) -> Any:
+def _instantiate_stream(cls: Any, client: Any, cat_stream: Any) -> Any:
     """
-    Prefer signature (client, catalog_stream); fallback to no-arg + attach attrs.
+    Instantiate a stream class with (client, catalog_stream).
+
+    All stream classes must implement __init__(client, catalog_stream).
+    This avoids half-initialized objects and makes behavior predictable.
     """
     try:
         return cls(client, cat_stream)
     except TypeError as exc:
-        LOGGER.warning(
-            "TypeError when instantiating %s(client, catalog_stream): %s. "
-            "Falling back to no-arg constructor.",
-            getattr(cls, "__name__", str(cls)),
-            exc,
-            exc_info=True,
-        )
-        inst = cls()
-        if hasattr(inst, "configure") and callable(getattr(inst, "configure")):
-            inst.configure(client, cat_stream)
-        else:
-            setattr(inst, "client", client)
-            setattr(inst, "catalog_stream", cat_stream)
-        return inst
+        raise TypeError(
+            f"{getattr(cls, '__name__', str(cls))} must implement "
+            "__init__(client, catalog_stream); got TypeError: {exc}"
+        ) from exc
 
 
-def _build_parent_map() -> Dict[str, str]:
-    """Build a reverse map of child_name -> parent_name from STREAMS."""
-    parent_map: Dict[str, str] = {}
-    for parent_name, parent_cls in STREAMS.items():
-        children = getattr(parent_cls, "children", []) or []
-        for child_name in children:
-            if child_name in STREAMS:
-                parent_map[child_name] = parent_name
-    return parent_map
-
-
-def _attach_children(parent_stream: Any, client: Client, catalog: singer.Catalog) -> None:
-    """Instantiate children declared on the parent and attach them to `child_to_sync`."""
-    parent_stream.child_to_sync = []
-    children = getattr(parent_stream, "children", []) or []
-    for child_name in children:
-        child_cls = STREAMS.get(child_name)
-        if not child_cls:
-            LOGGER.warning("Child stream '%s' not found in STREAMS mapping", child_name)
-            continue
-
-        child_cat = catalog.get_stream(child_name)
-        if not child_cat:
-            LOGGER.info("Skipping child '%s': not present in catalog", child_name)
-            continue
-
-        child_obj = _instantiate_stream(child_cls, client, child_cat)
-        parent_stream.child_to_sync.append(child_obj)
-
-
-def _write_schema_recursive(stream: Any, client: Client, catalog: singer.Catalog) -> None:
-    """Write schema for a stream and recursively for its children."""
-    if getattr(stream, "is_selected", lambda: False)():
-        stream.write_schema()
-
-    _attach_children(stream, client, catalog)
-    for child in getattr(stream, "child_to_sync", []):
-        _write_schema_recursive(child, client, catalog)
-
-
-def sync(  # pylint: disable=too-many-locals
-    client: Client,
-    config: Dict[str, Any],  # pylint: disable=unused-argument
-    catalog: singer.Catalog,
-    state: MutableMapping[str, Any],
-) -> None:
-    """Sync selected streams from catalog.
-
-    - Parents will run and invoke their children.
-    - If a child is selected and its parent is also selected, skip the child's
-      top-level sync to avoid double processing (the parent will invoke it).
+def _is_selected(cat_stream: Any) -> bool:
     """
+    Return whether the catalog stream is selected.
+
+    Uses Singer metadata selection semantics.
+    """
+    mdata = metadata.to_map(cat_stream.metadata)
+    return bool(metadata.get(mdata, (), "selected"))
+
+
+def _selected_catalog_streams(catalog: Any) -> Iterable[Any]:
+    """Yield selected catalog streams only."""
+    for cs in catalog.get_streams():
+        if _is_selected(cs):
+            yield cs
+
+
+def update_currently_syncing(state: Dict, stream_name: str) -> None:
+    """
+    Update 'currently_syncing' in state and emit state.
+
+    Pass stream_name to set the field; pass empty string to clear.
+    """
+    if stream_name:
+        singer.set_currently_syncing(state, stream_name)
+    else:
+        # Clear when done
+        cur = singer.get_currently_syncing(state)
+        if cur:
+            try:
+                del state["currently_syncing"]
+            except KeyError:
+                pass
+    singer.write_state(state)
+
+
+def _write_stream_schema(stream_obj: Any) -> None:
+    """Write the schema for the provided stream."""
     try:
-        selected_streams: List[str] = [s.stream for s in catalog.get_selected_streams(state)]
-        LOGGER.info("Selected streams: %s", selected_streams)
+        stream_obj.write_schema()
+    except OSError as err:
+        LOGGER.error("Failed to write schema for %s: %s", stream_obj.tap_stream_id, err)
+        raise
 
-        last_stream = singer.get_currently_syncing(state)
-        LOGGER.info("Last/currently syncing stream: %s", last_stream)
 
-        parent_map: Dict[str, str] = _build_parent_map()
-        selected_set: Set[str] = set(selected_streams)
+def _sync_stream(stream_obj: Any, state: Dict) -> Tuple[str, int]:
+    """
+    Run sync for a single stream object and return (stream_name, record_count).
 
-        with singer.Transformer() as transformer:
-            for stream_name in selected_streams:
-                # If this stream is a child AND its parent is also selected, skip top-level run.
-                parent_of_this = parent_map.get(stream_name)
-                if parent_of_this and parent_of_this in selected_set:
-                    LOGGER.info(
-                        "Skipping top-level sync for child '%s' because parent '%s' is selected.",
-                        stream_name,
-                        parent_of_this,
-                    )
-                    continue
+    The stream object is expected to implement .sync(state, transformer, parent_obj=None)
+    as provided by the base classes in tap_copper.streams.abstracts.
+    """
+    transformer = Transformer()
+    update_currently_syncing(state, stream_obj.tap_stream_id)
+    count = stream_obj.sync(state=state, transformer=transformer, parent_obj=None)
+    return stream_obj.tap_stream_id, int(count or 0)
 
-                stream_cls = STREAMS.get(stream_name)
-                if not isinstance(stream_cls, type):
-                    raise ValueError(f"Stream class not found for: {stream_name}")
 
-                stream = _instantiate_stream(stream_cls, client, catalog.get_stream(stream_name))
+def sync(client: Any, catalog: Any, state: Dict) -> None:
+    """
+    Orchestrate sync for all selected streams in the catalog.
 
-                # Write schemas for this stream + any selected children
-                _write_schema_recursive(stream, client, catalog)
+    Steps:
+      - Instantiate each selected stream via the registry
+      - Write schema
+      - Sync records (incremental or full-table per stream)
+      - Maintain 'currently_syncing' in state
+    """
+    LOGGER.info("Starting sync for selected streams")
 
-                LOGGER.info("START Syncing: %s", stream_name)
-                update_currently_syncing(state, stream_name)
+    # Build list so logs are stable and we can show a summary
+    selected = list(_selected_catalog_streams(catalog))
+    if not selected:
+        LOGGER.info("No streams selected; nothing to do.")
+        return
 
-                try:
-                    total_records = stream.sync(state=state, transformer=transformer)
-                except (RuntimeError, AttributeError, ValueError) as sync_err:
-                    LOGGER.exception("Failed syncing stream '%s': %s", stream_name, sync_err)
-                    update_currently_syncing(state, None)
-                    continue
+    # Instantiate and write schemas first (fail fast if constructor invalid)
+    instances: List[Any] = []
+    for cat_stream in selected:
+        tap_stream_id = cat_stream.tap_stream_id
+        stream_cls = STREAMS.get(tap_stream_id)
+        if stream_cls is None:
+            raise KeyError(f"Unknown stream '{tap_stream_id}' not found in STREAMS registry")
 
-                update_currently_syncing(state, None)
-                LOGGER.info("FINISHED Syncing: %s, total_records: %s", stream_name, total_records)
+        inst = _instantiate_stream(stream_cls, client, cat_stream)
+        _write_stream_schema(inst)
+        instances.append(inst)
 
-    except (KeyError, AttributeError, ValueError) as top_err:
-        LOGGER.exception("Unexpected failure in sync(): %s", top_err)
+    # Sync each stream and log a short summary line
+    for inst in instances:
+        name, count = _sync_stream(inst, state)
+        LOGGER.info("Synced %-30s records=%d", name, count)
+
+    # Clear currently_syncing when done
+    update_currently_syncing(state, "")
+
+    LOGGER.info("Finished sync for %d stream(s).", len(instances))

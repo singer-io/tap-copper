@@ -1,5 +1,3 @@
-"""Activities search (incremental)."""
-
 from tap_copper.streams.abstracts import IncrementalStream
 
 
