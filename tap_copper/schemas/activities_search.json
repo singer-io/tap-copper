@@ -71,8 +71,7 @@
     "activity_date": {
       "type": [
         "null",
-        "integer",
-        "string"
+        "integer"
       ]
     },
     "old_value": {
@@ -100,15 +99,13 @@
     "date_created": {
       "type": [
         "null",
-        "integer",
-        "string"
+        "integer"
       ]
     },
     "date_modified": {
       "type": [
         "null",
-        "integer",
-        "string"
+        "integer"
       ]
     }
   }

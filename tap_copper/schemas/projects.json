@@ -119,15 +119,13 @@
     "date_created": {
       "type": [
         "null",
-        "integer",
-        "string"
+        "integer"
       ]
     },
     "date_modified": {
       "type": [
         "null",
-        "integer",
-        "string"
+        "integer"
       ]
     }
   }
