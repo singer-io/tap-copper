@@ -83,9 +83,11 @@ def _sync_stream(stream_obj: Any, state: Dict) -> Tuple[str, int]:
     return stream_obj.tap_stream_id, int(count or 0)
 
 
-def sync(client: Any, catalog: Any, state: Dict) -> None:
+def sync(client: Any, catalog: Any, state: Dict, **_kwargs: Any) -> None:
     """
     Orchestrate sync for all selected streams in the catalog.
+
+    Accepts and ignores extra keyword args (e.g., config=...) for backward compatibility.
 
     Steps:
       - Instantiate each selected stream via the registry
