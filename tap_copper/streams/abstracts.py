@@ -9,6 +9,7 @@ Centralizes:
 """
 
 from abc import ABC, abstractmethod
+from typing import cast
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 from singer import (
@@ -401,4 +402,4 @@ class ChildBaseStream(IncrementalStream):
         """Singleton/cached bookmark lookups for child streams."""
         if self.bookmark_value is None:
             self.bookmark_value = super().get_bookmark(state, stream)
-        return self.bookmark_value
+        return cast(int, self.bookmark_value)
