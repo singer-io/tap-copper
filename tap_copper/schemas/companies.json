@@ -201,5 +201,6 @@
         "integer"
       ]
     }
-  }
+  },
+  "additionalProperties": true
 }
