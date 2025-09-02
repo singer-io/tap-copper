@@ -49,7 +49,8 @@
             "string"
           ]
         }
-      }
+      },
+      "additionalProperties": true
     },
     "assignee_id": {
       "type": [
@@ -98,7 +99,8 @@
               "string"
             ]
           }
-        }
+        },
+        "additionalProperties": true
       }
     },
     "primary_contact_id": {
@@ -130,7 +132,8 @@
               "string"
             ]
           }
-        }
+        },
+        "additionalProperties": true
       }
     },
     "tags": {
@@ -168,7 +171,8 @@
               "string"
             ]
           }
-        }
+        },
+        "additionalProperties": true
       }
     },
     "custom_fields": {
@@ -180,7 +184,8 @@
         "type": [
           "null",
           "object"
-        ]
+        ],
+        "additionalProperties": true
       }
     },
     "interaction_count": {
