@@ -71,42 +71,37 @@
     "activity_date": {
       "type": [
         "null",
-        "integer"
-      ]
+        "string"
+      ],
+      "format": "date-time"
     },
     "old_value": {
       "type": [
         "null",
         "object",
-        "string",
-        "number",
-        "integer",
-        "boolean",
-        "array"
+        "string"
       ]
     },
     "new_value": {
       "type": [
         "null",
         "object",
-        "string",
-        "number",
-        "integer",
-        "boolean",
-        "array"
+        "string"
       ]
     },
     "date_created": {
       "type": [
         "null",
-        "integer"
-      ]
+        "string"
+      ],
+      "format": "date-time"
     },
     "date_modified": {
       "type": [
         "null",
-        "integer"
-      ]
+        "string"
+      ],
+      "format": "date-time"
     }
   }
 }
