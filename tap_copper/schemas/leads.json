@@ -285,20 +285,23 @@
     "date_created": {
       "type": [
         "null",
-        "number"
-      ]
+        "string"
+      ],
+      "format": "date-time"
     },
     "date_modified": {
       "type": [
         "null",
-        "number"
-      ]
+        "string"
+      ],
+      "format": "date-time"
     },
     "date_last_contacted": {
       "type": [
         "null",
-        "number"
-      ]
+        "string"
+      ],
+      "format": "date-time"
     },
     "converted_opportunity_id": {
       "type": [
@@ -315,8 +318,9 @@
     "converted_at": {
       "type": [
         "null",
-        "number"
-      ]
+        "string"
+      ],
+      "format": "date-time"
     }
   },
   "additionalProperties": true
