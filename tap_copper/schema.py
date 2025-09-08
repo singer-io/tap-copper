@@ -1,8 +1,10 @@
-"""Schema loading and metadata preparation for tap-copper."""
+"""Schema loading and metadata preparation for tap-copper """
+
+from __future__ import annotations
 
 import json
 import os
-from typing import Any, Dict, List, Tuple, Optional
+from typing import Dict, Tuple
 
 import singer
 from singer import metadata
@@ -17,117 +19,62 @@ def get_abs_path(path: str) -> str:
     return os.path.join(os.path.dirname(os.path.realpath(__file__)), path)
 
 
-def load_schema_references() -> Dict[str, Any]:
-    """Load shared schema fragments from `schemas/shared` for $ref resolution.
-    Only loads *.json files and skips invalid JSON, logging warnings.
-    """
-    shared_schema_path = get_abs_path("schemas/shared")
-    refs: Dict[str, Any] = {}
-
-    if not os.path.exists(shared_schema_path):
+def load_schema_references() -> Dict[str, dict]:
+    """Load shared schema fragments from `schemas/shared` for $ref resolution."""
+    refs: Dict[str, dict] = {}
+    shared_dir = get_abs_path("schemas/shared")
+    if not os.path.exists(shared_dir):
         return refs
 
-    for fname in os.listdir(shared_schema_path):
-        if not fname.endswith(".json"):
+    for fname in os.listdir(shared_dir):
+        fpath = os.path.join(shared_dir, fname)
+        if not (os.path.isfile(fpath) and fname.endswith(".json")):
             continue
-        fpath = os.path.join(shared_schema_path, fname)
-        if os.path.isfile(fpath):
-            try:
-                with open(fpath, "r", encoding="utf-8") as fh:
-                    refs[f"shared/{fname}"] = json.load(fh)
-            except Exception as e:
-                LOGGER.warning(f"Failed to load shared schema '{fname}': {e}")
-
+        with open(fpath, "r", encoding="utf-8") as handle:
+            refs[f"shared/{fname}"] = json.load(handle)
     return refs
 
 
-def _cls_attr(cls: Any, name: str, default: Any) -> Any:
-    """Safely get a class attribute; if it's a descriptor (@property), return default."""
-    val = getattr(cls, name, default)
-    return default if isinstance(val, property) else val
+def get_schemas() -> Tuple[Dict[str, dict], Dict[str, list]]:
+    """Load per-stream schemas, resolve $refs, and prepare Singer metadata."""
+    # pylint: disable=too-many-locals
+    schemas: Dict[str, dict] = {}
+    field_metadata: Dict[str, list] = {}
 
-
-def _as_list(value: Any, context: str = "") -> List[Any]:
-    """Normalize value to a list. Warn if unexpected type."""
-    if value is None:
-        return []
-    if isinstance(value, (list, tuple, set)):
-        return list(value)
-    if isinstance(value, str):
-        return [value]
-    LOGGER.warning(f"Unexpected type for {context}: {type(value).__name__}. Returning [].")
-    return []
-
-
-def get_schemas() -> Tuple[Dict[str, Any], Dict[str, List[Any]]]:
-    """
-    Load per-stream schemas and prepare Singer metadata.
-
-    Returns:
-        (schemas, field_metadata)
-        - schemas: {stream_name: resolved JSON schema}
-        - field_metadata: {stream_name: metadata list}
-    """
-    schemas: Dict[str, Any] = {}
-    field_metadata: Dict[str, List[Any]] = {}
     refs = load_schema_references()
 
     for stream_name, stream_cls in STREAMS.items():
         schema_path = get_abs_path(f"schemas/{stream_name}.json")
-        if not os.path.exists(schema_path):
-            LOGGER.warning(f"Schema file not found: {schema_path}")
-            continue
+        with open(schema_path, "r", encoding="utf-8") as file_handle:
+            raw_schema = json.load(file_handle)
 
-        try:
-            with open(schema_path, "r", encoding="utf-8") as file:
-                schema = json.load(file)
-        except Exception as e:
-            LOGGER.warning(f"Failed to load schema for stream '{stream_name}': {e}")
-            continue
-
-        # Resolve $ref before building metadata
-        try:
-            schema = singer.resolve_schema_references(schema, refs)
-        except Exception as e:
-            LOGGER.warning(f"Failed to resolve $ref for stream '{stream_name}': {e}")
-            continue
-
-        # Ensure "properties" exists and is a dict
-        if "properties" not in schema or not isinstance(schema["properties"], dict):
-            LOGGER.warning(
-                f"Schema for {stream_name} missing 'properties'; initializing empty dict."
-            )
-            schema["properties"] = {}
-
+        # resolve $ref before building metadata
+        schema = singer.resolve_schema_references(raw_schema, refs)
         schemas[stream_name] = schema
 
-        # Read attributes from CLASS (no instantiation)
-        key_props = _as_list(_cls_attr(stream_cls, "key_properties", []), f"{stream_name}.key_properties")
-        repl_keys = _as_list(_cls_attr(stream_cls, "replication_keys", []), f"{stream_name}.replication_keys")
-        repl_method = _cls_attr(stream_cls, "replication_method", "FULL_TABLE")
+        key_props = getattr(stream_cls, "key_properties")
+        repl_keys = getattr(stream_cls, "replication_keys") or []
+        repl_method = getattr(stream_cls, "replication_method")
 
-        stream_metadata = metadata.get_standard_metadata(
+        mdata = metadata.get_standard_metadata(
             schema=schema,
             key_properties=key_props,
             valid_replication_keys=repl_keys,
             replication_method=repl_method,
         )
-        stream_metadata_map = metadata.to_map(stream_metadata)
+        m = metadata.to_map(mdata)
 
-        # Mark replication keys as inclusion=automatic if present in schema
-        for field_name in repl_keys:
-            if field_name in schema.get("properties", {}):
-                stream_metadata_map = metadata.write(
-                    stream_metadata_map,
-                    ("properties", field_name),
-                    "inclusion",
-                    "automatic",
-                )
-            else:
-                LOGGER.warning(
-                    f"Replication key '{field_name}' for stream '{stream_name}' not found in schema properties."
-                )
+        # mark replication keys as inclusion=automatic (if present in schema)
+        props = schema.get("properties", {})
+        for rk in repl_keys:
+            if rk in props:
+                m = metadata.write(m, ("properties", rk), "inclusion", "automatic")
 
-        field_metadata[stream_name] = metadata.to_list(stream_metadata_map)
+        # annotate parent if declared
+        parent_tap_stream_id = getattr(stream_cls, "parent", None)
+        if parent_tap_stream_id:
+            m = metadata.write(m, (), "parent-tap-stream-id", parent_tap_stream_id)
+
+        field_metadata[stream_name] = metadata.to_list(m)
 
     return schemas, field_metadata

@@ -1,126 +1,94 @@
-"""Sync orchestration for tap-copper."""
+"""
+Sync orchestration for tap-copper.
 
-from typing import Any, Dict, Iterable, List, Tuple
+This module coordinates:
+- stream selection from the catalog
+- schema emission
+- per-stream sync execution
+- state updates (currently_syncing, bookmarks)
+
+Pattern aligned with reference taps.
+"""
+
+from typing import Any, Dict, List
 import singer
 from singer import Transformer, metadata
-
 from tap_copper.streams import STREAMS
 
 LOGGER = singer.get_logger()
 
 
-def _instantiate_stream(cls: Any, client: Any, cat_stream: Any) -> Any:
-    """
-    Instantiate a stream class with (client, catalog_stream).
-
-    All stream classes must implement __init__(client, catalog_stream).
-    This avoids half-initialized objects and makes behavior predictable.
-    """
-    try:
-        return cls(client, cat_stream)
-    except TypeError as exc:
-        raise TypeError(
-            f"{getattr(cls, '__name__', str(cls))} must implement "
-            "__init__(client, catalog_stream); got {type(exc).__name__}: {exc}"
-        ) from exc
-
-
 def _is_selected(cat_stream: Any) -> bool:
-    """
-    Return whether the catalog stream is selected.
-
-    Uses Singer metadata selection semantics.
-    """
+    """Return whether the catalog stream is selected."""
     mdata = metadata.to_map(cat_stream.metadata)
     return bool(metadata.get(mdata, (), "selected"))
 
 
-def _selected_catalog_streams(catalog: Any) -> Iterable[Any]:
-    """Yield selected catalog streams only."""
-    for cs in catalog.get_streams():
-        if _is_selected(cs):
-            yield cs
-
-
-def update_currently_syncing(state: Dict, stream_name: str) -> None:
-    """
-    Update 'currently_syncing' in state and emit state.
-
-    Pass stream_name to set the field; pass empty string to clear.
-    """
-    if stream_name:
-        singer.set_currently_syncing(state, stream_name)
+def update_currently_syncing(state: Dict[str, Any], stream_name: str | None) -> None:
+    """Update `currently_syncing` in state and emit the state."""
+    if not stream_name and singer.get_currently_syncing(state):
+        state.pop("currently_syncing", None)
     else:
-        # Clear when done
-        cur = singer.get_currently_syncing(state)
-        if cur:
-            try:
-                del state["currently_syncing"]
-            except KeyError:
-                pass
+        singer.set_currently_syncing(state, stream_name or "")
     singer.write_state(state)
 
 
-def _write_stream_schema(stream_obj: Any) -> None:
-    """Write the schema for the provided stream."""
-    try:
+def _instantiate_stream(stream_name: str, client: Any, catalog: Any) -> Any:
+    """Instantiate a stream class with (client, catalog_stream) per registry."""
+    stream_cls = STREAMS[stream_name]
+    return stream_cls(client, catalog.get_stream(stream_name))
+
+
+def _write_schema_recursive(
+    stream_obj: Any,
+    client: Any,
+    catalog: Any,
+    selected_names: List[str],
+) -> None:
+    """Write schema for the stream and its children; attach selected children."""
+    if stream_obj.is_selected():
         stream_obj.write_schema()
-    except OSError as err:
-        LOGGER.error("Failed to write schema for %s: %s", stream_obj.tap_stream_id, err)
-        raise
+
+    for child_name in getattr(stream_obj, "children", []):
+        child_obj = _instantiate_stream(child_name, client, catalog)
+        _write_schema_recursive(child_obj, client, catalog, selected_names)
+        if child_name in selected_names:
+            stream_obj.child_to_sync.append(child_obj)
 
 
-def _sync_stream(stream_obj: Any, state: Dict) -> Tuple[str, int]:
-    """
-    Run sync for a single stream object and return (stream_name, record_count).
+def sync(client: Any, catalog: Any, state: Dict[str, Any], **_kwargs: Any) -> None:
+    """Sync all selected streams using parent-first orchestration."""
+    # 1) Gather selected stream names.
+    selected_names: List[str] = [
+        cs.stream for cs in catalog.get_streams() if _is_selected(cs)
+    ]
+    LOGGER.info("selected_streams: %s", selected_names)
 
-    The stream object is expected to implement .sync(state, transformer, parent_obj=None)
-    as provided by the base classes in tap_copper.streams.abstracts.
-    """
-    transformer = Transformer()
-    update_currently_syncing(state, stream_obj.tap_stream_id)
-    count = stream_obj.sync(state=state, transformer=transformer, parent_obj=None)
-    return stream_obj.tap_stream_id, int(count or 0)
+    # 2) Ensure parents of any selected children are included.
+    #    (We append missing parents; children are driven by parents later.)
+    i = 0
+    while i < len(selected_names):
+        name = selected_names[i]
+        parent = getattr(STREAMS[name], "parent", None)
+        if parent and parent not in selected_names:
+            selected_names.append(parent)
+        i += 1
 
+    last_stream = singer.get_currently_syncing(state)
+    LOGGER.info("last/currently syncing stream: %s", last_stream)
 
-def sync(client: Any, catalog: Any, state: Dict, **_kwargs: Any) -> None:
-    """
-    Orchestrate sync for all selected streams in the catalog.
+    # 3) Sync each top-level (non-child) stream. Children are driven via child_to_sync.
+    with Transformer() as transformer:
+        for stream_name in selected_names:
+            if getattr(STREAMS[stream_name], "parent", None):
+                # Skip child here; its parent will drive it.
+                continue
 
-    Accepts and ignores extra keyword args (e.g., config=...) for backward compatibility.
+            stream_obj = _instantiate_stream(stream_name, client, catalog)
+            _write_schema_recursive(stream_obj, client, catalog, selected_names)
 
-    Steps:
-      - Instantiate each selected stream via the registry
-      - Write schema
-      - Sync records (incremental or full-table per stream)
-      - Maintain 'currently_syncing' in state
-    """
-    LOGGER.info("Starting sync for selected streams")
-
-    # Build list so logs are stable and we can show a summary
-    selected = list(_selected_catalog_streams(catalog))
-    if not selected:
-        LOGGER.info("No streams selected; nothing to do.")
-        return
-
-    # Instantiate and write schemas first (fail fast if constructor invalid)
-    instances: List[Any] = []
-    for cat_stream in selected:
-        tap_stream_id = cat_stream.tap_stream_id
-        stream_cls = STREAMS.get(tap_stream_id)
-        if stream_cls is None:
-            raise KeyError(f"Unknown stream '{tap_stream_id}' not found in STREAMS registry")
-
-        inst = _instantiate_stream(stream_cls, client, cat_stream)
-        _write_stream_schema(inst)
-        instances.append(inst)
-
-    # Sync each stream and log a short summary line
-    for inst in instances:
-        name, count = _sync_stream(inst, state)
-        LOGGER.info("Synced %-30s records=%d", name, count)
-
-    # Clear currently_syncing when done
-    update_currently_syncing(state, "")
-
-    LOGGER.info("Finished sync for %d stream(s).", len(instances))
+            LOGGER.info("START Syncing: %s", stream_name)
+            update_currently_syncing(state, stream_name)
+            total_records = int(stream_obj.sync(state=state, transformer=transformer) or 0)
+            update_currently_syncing(state, None)
+            LOGGER.info("FINISHED Syncing: %s, total_records: %d", stream_name, total_records)
