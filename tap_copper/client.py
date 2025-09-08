@@ -1,9 +1,10 @@
-"""HTTP client for Copper API with auth, retries, metrics, and error handling."""
+"""HTTP client (testing variant) for Copper API with auth, retries, and error handling."""
 
-from typing import Any, Dict, Mapping, Optional, Tuple
-from dataclasses import dataclass
-import json
+from __future__ import annotations
+
 import time
+from dataclasses import dataclass
+from typing import Any, Dict, Mapping, Optional
 
 import backoff
 import requests
@@ -23,11 +24,12 @@ from tap_copper.exceptions import (
 
 LOGGER = get_logger()
 REQUEST_TIMEOUT = 300
+DEFAULT_BASE_URL = "https://api.copper.com/developer_api/v1"
 
 
 @dataclass
-class _RequestOptions:
-    """Internal holder to avoid too-many-arguments on make_request."""
+class RequestOptions:
+    """Container for optional request arguments to keep signatures short."""
     endpoint: Optional[str] = None
     params: Optional[Dict[str, Any]] = None
     headers: Optional[Dict[str, Any]] = None
@@ -35,153 +37,107 @@ class _RequestOptions:
     path: Optional[str] = None
 
 
-def wait_if_retry_after(details):
-    """Backoff handler: if exception has retry_after, sleep exactly that long."""
+def wait_if_retry_after(details: Dict[str, Any]) -> None:
+    """Respect a Retry-After value provided by an exception during backoff."""
     exc = details.get("exception")
     retry_after = getattr(exc, "retry_after", None)
-    if retry_after is not None:
-        LOGGER.warning("Respecting Retry-After: sleeping %s seconds", retry_after)
+    if retry_after:
+        LOGGER.warning("Retrying after %s second(s) due to rate limiting.", retry_after)
         time.sleep(retry_after)
 
 
 def raise_for_error(response: requests.Response) -> None:
-    """
-    Raise domain-specific exception for non-2xx responses.
-    Extracts error messages from Copper payloads when possible.
-    """
+    """Raise a domain-specific exception for non-2xx responses."""
     try:
-        response_json = response.json()
-    except (ValueError, json.JSONDecodeError):
-        response_json = {}
+        payload = response.json()
+    except Exception:  # pylint: disable=broad-except
+        payload = {}
 
-    status = response.status_code
-    if status in (200, 201, 204):
+    if response.status_code in (200, 201, 204):
         return
 
-    payload_msg = (
-        response_json.get("error")
-        or response_json.get("message")
-        or (
-            ", ".join(response_json.get("errors", []))
-            if isinstance(response_json.get("errors"), list)
-            else None
-        )
+    errors = payload.get("errors")
+    errors_joined = ", ".join(errors) if isinstance(errors, list) else None
+    message = (
+        payload.get("error")
+        or payload.get("message")
+        or errors_joined
         or response.text.strip()
+        or "Unknown Error"
     )
 
-    mapped = ERROR_CODE_EXCEPTION_MAPPING.get(status, {})
-    default_msg = mapped.get("message", "Unknown Error")
-    message = f"HTTP {status}: {payload_msg or default_msg}"
+    exc_cls = ERROR_CODE_EXCEPTION_MAPPING.get(
+        response.status_code, {}
+    ).get("raise_exception", CopperError)
 
-    exc_class = mapped.get("raise_exception", CopperError)
-    LOGGER.error("Raising exception for %s: %s", status, message)
-    raise exc_class(message, response) from None
+    raise exc_cls(f"HTTP {response.status_code}: {message}", response) from None
 
 
 class Client:
-    """
-    HTTP Client wrapper that handles:
-      - Authentication headers
-      - Metrics and error logging
-      - Retry/backoff for network and 5xx/429 errors
-    """
+    """HTTP client wrapper for Copper API (testing variant)."""
 
     def __init__(self, config: Mapping[str, Any]) -> None:
         self.config: Dict[str, Any] = dict(config or {})
         self._session = session()
-        base = self.config.get("base_url") or "https://api.copper.com/developer_api/v1"
-        self.base_url = base.rstrip("/")
+        self.base_url = (self.config.get("base_url") or DEFAULT_BASE_URL).rstrip("/")
         timeout_val = self.config.get("request_timeout")
         self.request_timeout = float(timeout_val) if timeout_val else REQUEST_TIMEOUT
 
-    def __enter__(self):
-        self.check_api_credentials()
+    def __enter__(self) -> "Client":
         return self
 
-    def __exit__(self, exception_type, exception_value, traceback):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:  # noqa: D401
         self._session.close()
 
-    def check_api_credentials(self) -> None:
-        """Warn if required credentials are missing."""
-        if not (self.config.get("api_key") or self.config.get("access_token")):
-            LOGGER.warning("Copper api_key/access_token not found in config.")
-        if not (self.config.get("user_email") or self.config.get("email")):
-            LOGGER.warning("Copper user_email/email not found in config.")
+    def authenticate(
+        self,
+        headers: Optional[Dict[str, Any]],
+        params: Optional[Dict[str, Any]],
+    ) -> tuple[Dict[str, Any], Dict[str, Any]]:
+        """Attach Copper authentication headers to request headers."""
+        hdrs: Dict[str, Any] = dict(headers or {})
+        prms: Dict[str, Any] = dict(params or {})
 
-    @staticmethod
-    def _strip_empty_keys(d: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-        """Drop empty-string keys to avoid bad headers/params."""
-        if not isinstance(d, dict):
-            return {}
-        return {k: v for k, v in d.items() if isinstance(k, str) and k.strip()}
-
-    def authenticate(self, headers: Dict, params: Dict) -> Tuple[Dict, Dict]:
-        """Attach Copper auth headers and sane defaults."""
-        headers = dict(self._strip_empty_keys(headers))
-        params = dict(self._strip_empty_keys(params))
         api_key = self.config.get("api_key") or self.config.get("access_token")
         user_email = self.config.get("user_email") or self.config.get("email")
 
         if api_key:
-            headers["X-PW-AccessToken"] = api_key
+            hdrs["X-PW-AccessToken"] = api_key
         if user_email:
-            headers["X-PW-UserEmail"] = user_email
+            hdrs["X-PW-UserEmail"] = user_email
 
-        headers.setdefault("X-PW-Application", "developer_api")
-        headers.setdefault("Accept", "application/json")
-        headers.setdefault("Content-Type", "application/json")
+        hdrs.setdefault("X-PW-Application", "developer_api")
+        hdrs.setdefault("Accept", "application/json")
+        hdrs.setdefault("Content-Type", "application/json")
 
-        return headers, params
+        return hdrs, prms
 
-    def get(self, endpoint: str, params: Dict, headers: Dict,
-            path: str = None) -> Any:
+    def get(self, opts: RequestOptions) -> Any:
         """Perform a GET request."""
-        opts = _RequestOptions(
-            endpoint=endpoint,
-            params=params,
-            headers=headers,
-            path=path,
-        )
         return self.make_request("GET", opts)
 
-    # pylint: disable=too-many-arguments, too-many-positional-arguments
-    def post(self, endpoint: str, params: Dict, headers: Dict,
-             body: Dict, path: str = None) -> Any:
+    def post(self, opts: RequestOptions) -> Any:
         """Perform a POST request."""
-        opts = _RequestOptions(
-            endpoint=endpoint,
-            params=params,
-            headers=headers,
-            body=body,
-            path=path,
-        )
         return self.make_request("POST", opts)
 
-    def make_request(self, method: str, opts: _RequestOptions) -> Any:
-        """
-        Sends an HTTP request to the specified API endpoint.
-        Builds URL from base_url + path if endpoint not given.
-        """
-        params = opts.params or {}
-        headers = opts.headers or {}
-        body = opts.body or {}
-        endpoint = opts.endpoint
+    def make_request(self, method: str, opts: RequestOptions) -> Any:
+        """Send an HTTP request with retries and error handling."""
+        if opts.endpoint:
+            url = opts.endpoint
+        else:
+            suffix = str(opts.path).lstrip("/") if opts.path else ""
+            url = f"{self.base_url}/{suffix}" if suffix else self.base_url
 
-        if not endpoint:
-            endpoint = (
-                self.base_url
-                if not opts.path
-                else f"{self.base_url}/{str(opts.path).lstrip('/')}"
-            )
+        auth_headers, auth_params = self.authenticate(
+            opts.headers or {}, opts.params or {}
+        )
 
-        headers, params = self.authenticate(headers, params)
-
-        return self.__make_request(
-            method,
-            endpoint,
-            headers=headers,
-            params=params,
-            json=body,
+        return self._do_request(
+            method.upper(),
+            url,
+            headers=auth_headers,
+            params=auth_params,
+            json=opts.body or {},
             timeout=self.request_timeout,
         )
 
@@ -198,26 +154,16 @@ class Client:
         max_tries=5,
         factor=2,
     )
-    def __make_request(
-        self,
-        method: str,
-        endpoint: str,
-        **kwargs,
-    ) -> Optional[Mapping[str, Any]]:
-        """Low-level HTTP request/response handler with metrics + error raising."""
-        method = (method or "").upper()
-        with metrics.http_request_timer(endpoint):
-            if method == "GET":
-                kwargs.pop("json", None)
-            elif method != "POST":
-                raise ValueError(f"Unsupported method: {method}")
-
-            response = self._session.request(method, endpoint, **kwargs)
+    def _do_request(self, method: str, url: str, **kwargs) -> Optional[Mapping[str, Any]]:
+        """Low-level HTTP request/response handler with metrics and error raising."""
+        with metrics.http_request_timer(url):
+            response = self._session.request(method, url, **kwargs)
             raise_for_error(response)
 
-            if response.status_code == 204:
-                return None
-            try:
-                return response.json()
-            except ValueError:
-                return None
+        if response.status_code == 204:
+            return None
+
+        try:
+            return response.json()
+        except ValueError:
+            return None

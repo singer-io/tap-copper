@@ -3,8 +3,9 @@ from tap_copper.streams.abstracts import FullTableStream
 
 
 class Account(FullTableStream):
+    """Single account object (one-shot GET)."""
     tap_stream_id = "account"
-    key_properties = ["id"]
+    key_properties = ("id",)
     replication_method = "FULL_TABLE"
 
     http_method = "GET"
@@ -13,13 +14,8 @@ class Account(FullTableStream):
 
     def get_records(self) -> Iterator[Dict[str, Any]]:
         """Emit the single account object once."""
-        resp = self.client.make_request(
-            self.http_method,
-            self.get_url_endpoint(),
-            self.params,
-            self.headers,
-            body=self.data_payload,
-            path=self.path,
+        resp = self.client.get(
+            self.get_url_endpoint(), self.params, self.headers, self.path
         )
         if isinstance(resp, dict):
             yield resp
