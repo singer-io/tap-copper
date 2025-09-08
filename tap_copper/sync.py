@@ -1,16 +1,13 @@
 """
 Sync orchestration for tap-copper.
-
 This module coordinates:
 - stream selection from the catalog
 - schema emission
 - per-stream sync execution
 - state updates (currently_syncing, bookmarks)
-
-Pattern aligned with reference taps.
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 import singer
 from singer import Transformer, metadata
 from tap_copper.streams import STREAMS
@@ -24,7 +21,9 @@ def _is_selected(cat_stream: Any) -> bool:
     return bool(metadata.get(mdata, (), "selected"))
 
 
-def update_currently_syncing(state: Dict[str, Any], stream_name: str | None) -> None:
+def update_currently_syncing(
+    state: Dict[str, Any], stream_name: Optional[str]
+) -> None:
     """Update `currently_syncing` in state and emit the state."""
     if not stream_name and singer.get_currently_syncing(state):
         state.pop("currently_syncing", None)
@@ -89,6 +88,12 @@ def sync(client: Any, catalog: Any, state: Dict[str, Any], **_kwargs: Any) -> No
 
             LOGGER.info("START Syncing: %s", stream_name)
             update_currently_syncing(state, stream_name)
-            total_records = int(stream_obj.sync(state=state, transformer=transformer) or 0)
+            total_records = int(
+                stream_obj.sync(state=state, transformer=transformer) or 0
+            )
             update_currently_syncing(state, None)
-            LOGGER.info("FINISHED Syncing: %s, total_records: %d", stream_name, total_records)
+            LOGGER.info(
+                "FINISHED Syncing: %s, total_records: %d",
+                stream_name,
+                total_records,
+            )
