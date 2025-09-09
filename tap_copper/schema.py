@@ -1,4 +1,4 @@
-"""Schema loading and metadata preparation for tap-copper """
+"""Schema loading and metadata preparation for tap-copper."""
 
 from __future__ import annotations
 
@@ -48,7 +48,7 @@ def get_schemas() -> Tuple[Dict[str, dict], Dict[str, list]]:
         with open(schema_path, "r", encoding="utf-8") as file_handle:
             raw_schema = json.load(file_handle)
 
-        # resolve $ref before building metadata
+        # Resolve $ref before building metadata.
         schema = singer.resolve_schema_references(raw_schema, refs)
         schemas[stream_name] = schema
 
@@ -62,19 +62,23 @@ def get_schemas() -> Tuple[Dict[str, dict], Dict[str, list]]:
             valid_replication_keys=repl_keys,
             replication_method=repl_method,
         )
-        m = metadata.to_map(mdata)
+        mdata = metadata.to_map(mdata)
 
-        # mark replication keys as inclusion=automatic (if present in schema)
+        # Mark replication keys as inclusion=automatic (if present in schema).
         props = schema.get("properties", {})
         for rk in repl_keys:
             if rk in props:
-                m = metadata.write(m, ("properties", rk), "inclusion", "automatic")
+                mdata = metadata.write(
+                    mdata, ("properties", rk), "inclusion", "automatic"
+                )
 
-        # annotate parent if declared
+        # Annotate parent if declared.
         parent_tap_stream_id = getattr(stream_cls, "parent", None)
         if parent_tap_stream_id:
-            m = metadata.write(m, (), "parent-tap-stream-id", parent_tap_stream_id)
+            mdata = metadata.write(
+                mdata, (), "parent-tap-stream-id", parent_tap_stream_id
+            )
 
-        field_metadata[stream_name] = metadata.to_list(m)
+        field_metadata[stream_name] = metadata.to_list(mdata)
 
     return schemas, field_metadata

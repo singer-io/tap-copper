@@ -147,6 +147,18 @@ class BaseStream(ABC):
             return raw if isinstance(raw, list) else []
         return []
 
+    def _response_has_more(self, response: Dict[str, Any]) -> Optional[bool]:
+        """Try to infer 'has more' from common fields; return None if unknown."""
+        # Prefer explicit hints if the API offers them
+        for key in ("has_more", "hasMore", "has_next_page", "hasNextPage"):
+            if key in response:
+                return bool(response.get(key))
+        # Some APIs provide a next-page token under known keys
+        for key in ("next_page", "nextPage", "next", "nextToken", "next_token"):
+            if response.get(key):
+                return True
+        return None
+
     def get_records(self) -> Iterator[Dict[str, Any]]:
         """Drive HTTP calls and iterate paginated results."""
         next_page: Any = 1
@@ -160,23 +172,40 @@ class BaseStream(ABC):
                 path=self.path,
             )
 
+            records: List[Dict[str, Any]]
             if isinstance(response, list):
                 records = response
                 next_page = None
             elif isinstance(response, dict):
                 records = self._extract_records(response)
+
+                # 1) Prefer token-based pagination if configured
                 next_page = self.update_pagination_key(response)
 
-                # Fallback: page_number/page_size if defined and full page returned.
+                # 2) If token wasn't set, prefer explicit end-of-data indicators
                 if not next_page and self.page_number_field in self.data_payload:
+                    explicit_more = self._response_has_more(response)
+
                     size_val = self.data_payload.get(self.page_size_field, self.page_size)
                     page_size = int(size_val) if size_val is not None else 0
-                    if page_size and len(records) >= page_size:
-                        current = int(self.data_payload.get(self.page_number_field, 1))
-                        self.data_payload[self.page_number_field] = current + 1
-                        next_page = True
+
+                    if explicit_more is not None:
+                        # Trust the API's explicit signal
+                        if explicit_more:
+                            current = int(self.data_payload.get(self.page_number_field, 1))
+                            self.data_payload[self.page_number_field] = current + 1
+                            next_page = True
+                        else:
+                            next_page = None
                     else:
-                        next_page = None
+                        # 3) Fallback heuristic: if the page is shorter than page_size, stop;
+                        #    else, assume there might be more.
+                        if page_size > 0 and len(records) < page_size:
+                            next_page = None
+                        else:
+                            current = int(self.data_payload.get(self.page_number_field, 1))
+                            self.data_payload[self.page_number_field] = current + 1
+                            next_page = True
             else:
                 records = []
                 next_page = None
@@ -225,8 +254,8 @@ class IncrementalStream(BaseStream):
         bookmark = self.get_bookmark(state, self.tap_stream_id)
         current_max = bookmark
 
-        # Opt-in to page_number/page_size if a page size is set.
-        if self.page_size:
+        # Opt-in to page_number/page_size if a valid positive page size is set.
+        if isinstance(self.page_size, int) and self.page_size > 0:
             self.update_data_payload(
                 **{self.page_size_field: self.page_size, self.page_number_field: 1}
             )
@@ -280,8 +309,8 @@ class FullTableStream(BaseStream):
         parent_obj: Optional[Dict[str, Any]] = None,
     ) -> int:
         """Default full-table implementation."""
-        # Opt-in to page_number/page_size for search-style endpoints.
-        if self.page_size:
+        # Opt-in to page_number/page_size for search-style endpoints (only if valid).
+        if isinstance(self.page_size, int) and self.page_size > 0:
             self.update_data_payload(
                 **{self.page_size_field: self.page_size, self.page_number_field: 1}
             )

@@ -19,11 +19,10 @@ REQUIRED_CONFIG_KEYS = ["api_key", "user_email"]
 
 
 def do_discover() -> None:
-    """Discover and emit the catalog to stdout."""
+    """Emit the catalog JSON to stdout."""
     LOGGER.info("Starting discover")
     catalog = discover()
     json.dump(catalog.to_dict(), sys.stdout, indent=2)
-    sys.stdout.write("\n")
     LOGGER.info("Finished discover")
 
 
@@ -36,18 +35,13 @@ def main() -> None:
     with Client(parsed_args.config) as client:
         if parsed_args.discover:
             do_discover()
-            return
-
-        if parsed_args.catalog:
+        elif parsed_args.catalog:
             sync(
                 client=client,
                 config=parsed_args.config,
                 catalog=parsed_args.catalog,
                 state=state,
             )
-            return
-
-        raise SystemExit("No mode specified: use --discover or provide a catalog for sync.")
 
 
 if __name__ == "__main__":
