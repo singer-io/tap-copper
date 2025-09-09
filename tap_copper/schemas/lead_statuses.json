@@ -25,6 +25,5 @@
         "boolean"
       ]
     }
-  },
-  "additionalProperties": true
+  }
 }

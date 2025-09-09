@@ -42,10 +42,8 @@
               "string"
             ]
           }
-        },
-        "additionalProperties": true
+        }
       }
     }
-  },
-  "additionalProperties": true
+  }
 }

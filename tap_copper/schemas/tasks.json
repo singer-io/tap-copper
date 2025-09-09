@@ -31,8 +31,7 @@
             "string"
           ]
         }
-      },
-      "additionalProperties": true
+      }
     },
     "assignee_id": {
       "type": [
@@ -100,8 +99,7 @@
         "type": [
           "null",
           "object"
-        ],
-        "additionalProperties": true
+        ]
       }
     },
     "date_created": {
@@ -124,6 +122,5 @@
         "integer"
       ]
     }
-  },
-  "additionalProperties": true
+  }
 }
