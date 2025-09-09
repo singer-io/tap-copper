@@ -203,10 +203,8 @@
         "type": [
           "null",
           "object"
-        ],
-        "additionalProperties": true
+        ]
       }
     }
-  },
-  "additionalProperties": true
+  }
 }

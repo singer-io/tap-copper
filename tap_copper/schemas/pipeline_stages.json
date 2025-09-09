@@ -25,6 +25,5 @@
         "number"
       ]
     }
-  },
-  "additionalProperties": true
+  }
 }

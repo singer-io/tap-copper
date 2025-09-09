@@ -42,8 +42,7 @@
               "number"
             ]
           }
-        },
-        "additionalProperties": true
+        }
       }
     },
     "type": {
@@ -58,6 +57,5 @@
         "boolean"
       ]
     }
-  },
-  "additionalProperties": true
+  }
 }

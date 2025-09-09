@@ -79,8 +79,7 @@
             "string"
           ]
         }
-      },
-      "additionalProperties": true
+      }
     },
     "assignee_id": {
       "type": [
@@ -135,8 +134,7 @@
               "string"
             ]
           }
-        },
-        "additionalProperties": true
+        }
       }
     },
     "phone_numbers": {
@@ -162,8 +160,7 @@
               "string"
             ]
           }
-        },
-        "additionalProperties": true
+        }
       }
     },
     "socials": {
@@ -189,8 +186,7 @@
               "string"
             ]
           }
-        },
-        "additionalProperties": true
+        }
       }
     },
     "tags": {
@@ -234,8 +230,7 @@
               "string"
             ]
           }
-        },
-        "additionalProperties": true
+        }
       }
     },
     "custom_fields": {
@@ -247,8 +242,7 @@
         "type": [
           "null",
           "object"
-        ],
-        "additionalProperties": true
+        ]
       }
     },
     "date_created": {
@@ -298,6 +292,5 @@
       ],
       "format": "date-time"
     }
-  },
-  "additionalProperties": true
+  }
 }

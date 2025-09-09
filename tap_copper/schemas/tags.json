@@ -49,6 +49,5 @@
         "integer"
       ]
     }
-  },
-  "additionalProperties": true
+  }
 }
