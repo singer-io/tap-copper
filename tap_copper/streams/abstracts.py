@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import json
-from typing import Any, Dict, Tuple, List, Iterator  # noqa: F401
+from typing import Any, Dict, Tuple, List, Iterator
 from singer import (
     Transformer,
     get_bookmark,
@@ -9,7 +9,7 @@ from singer import (
     write_bookmark,
     write_record,
     write_schema,
-    metadata,
+    metadata
 )
 
 LOGGER = get_logger()
@@ -260,12 +260,12 @@ class ParentBaseStream(IncrementalStream):
         bookmark values or start values."""
         min_parent_bookmark = (
             super().get_bookmark(state, stream) if self.is_selected() else None
-        )
+        ) # pylint: disable=too-many-function-args
         for child in self.child_to_sync:
             bookmark_key = f"{self.tap_stream_id}_{self.replication_keys[0]}"
             child_bookmark = super().get_bookmark(
                 state, child.tap_stream_id, key=bookmark_key
-            )
+            ) # pylint: disable=too-many-function-args
             min_parent_bookmark = (
                 min(min_parent_bookmark, child_bookmark)
                 if min_parent_bookmark
