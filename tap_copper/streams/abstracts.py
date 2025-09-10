@@ -106,7 +106,8 @@ class BaseStream(ABC):
         """
 
     def get_records(self) -> Iterator:
-        """Interacts with api client and pagination (token or page key)."""
+        """Interacts with api client interaction and pagination."""
+        self.params[""] = self.page_size
         next_page = 1
         while next_page:
             response = self.client.make_request(
@@ -192,7 +193,7 @@ class IncrementalStream(BaseStream):
         parent_obj: Dict = None,
     ) -> Dict:
         """Implementation for `type: Incremental` stream."""
-        bookmark_date = self.get_bookmark(state=state, stream=self.tap_stream_id)
+        bookmark_date = self.get_bookmark(state, self.tap_stream_id)  # pylint: disable=too-many-function-args
         current_max_bookmark_date = bookmark_date
         self.update_params(updated_since=bookmark_date)
         self.update_data_payload(parent_obj)
@@ -218,7 +219,7 @@ class IncrementalStream(BaseStream):
                     for child in self.child_to_sync:
                         child.sync(state=state, transformer=transformer, parent_obj=record)
 
-            state = self.write_bookmark(state=state, stream=self.tap_stream_id, value=current_max_bookmark_date)
+            state = self.write_bookmark(state, self.tap_stream_id, value=current_max_bookmark_date)  # pylint: disable=too-many-function-args
             return counter.value
 
 
@@ -258,16 +259,16 @@ class ParentBaseStream(IncrementalStream):
         """A wrapper for singer.get_bookmark to deal with compatibility for
         bookmark values or start values."""
         min_parent_bookmark = (
-            super().get_bookmark(state=state, stream=stream) if self.is_selected() else None
+            super().get_bookmark(state, stream) if self.is_selected() else None
         )
         for child in self.child_to_sync:
             bookmark_key = f"{self.tap_stream_id}_{self.replication_keys[0]}"
             child_bookmark = super().get_bookmark(
-                state=state, stream=child.tap_stream_id, key=bookmark_key
+                state, child.tap_stream_id, key=bookmark_key
             )
             min_parent_bookmark = (
                 min(min_parent_bookmark, child_bookmark)
-                if min_parent_bookmark is not None
+                if min_parent_bookmark
                 else child_bookmark
             )
 
@@ -279,13 +280,11 @@ class ParentBaseStream(IncrementalStream):
         """A wrapper for singer.get_bookmark to deal with compatibility for
         bookmark values or start values."""
         if self.is_selected():
-            super().write_bookmark(state=state, stream=stream, key=key, value=value)
+            super().write_bookmark(state, stream, value=value)  # pylint: disable=too-many-function-args
 
         for child in self.child_to_sync:
             bookmark_key = f"{self.tap_stream_id}_{self.replication_keys[0]}"
-            super().write_bookmark(
-                state=state, stream=child.tap_stream_id, key=bookmark_key, value=value
-            )
+            super().write_bookmark(state, child.tap_stream_id, key=bookmark_key, value=value)  # pylint: disable=too-many-function-args
 
         return state
 
@@ -304,5 +303,5 @@ class ChildBaseStream(IncrementalStream):
     def get_bookmark(self, state: Dict, stream: str, key: Any = None) -> int:
         """Singleton bookmark value for child streams."""
         if not self.bookmark_value:
-            self.bookmark_value = super().get_bookmark(state=state, stream=stream, key=key)
+            self.bookmark_value = super().get_bookmark(state, stream)  # pylint: disable=too-many-function-args
         return self.bookmark_value
