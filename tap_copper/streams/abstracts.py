@@ -1,328 +1,253 @@
-"""Base stream abstractions for tap-copper, aligned with reference taps.
-
-- Support both token and page_number/page_size pagination.
-- Provide IncrementalStream, FullTableStream, and ChildBaseStream.
-"""
-
-from __future__ import annotations
-
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Iterator, List, Tuple, Optional, cast
-
+import json
+from typing import Any, Dict, Tuple, List, Iterator
 from singer import (
     Transformer,
     get_bookmark,
     get_logger,
-    metadata,
     metrics,
     write_bookmark,
     write_record,
     write_schema,
+    metadata,
 )
 
 LOGGER = get_logger()
 
 
 class BaseStream(ABC):
-    """Reference-style base class providing request/pagination scaffolding."""
+    """
+    A Base Class providing structure and boilerplate for generic streams
+    and required attributes for any kind of stream
+    ~~~
+    Provides:
+     - Basic Attributes (stream_name,replication_method,key_properties)
+     - Helper methods for catalog generation
+     - `sync` and `get_records` method for performing sync
+    """
 
-    # Endpoint / HTTP
-    url_endpoint: str = ""
-    path: str = ""
-    http_method: str = "GET"
-    headers: Dict[str, str] = {
+    url_endpoint = ""
+    path = ""
+    page_size = 0
+    next_page_key = ""
+    headers = {
         "X-PW-AccessToken": "{{ api_key }}",
         "X-PW-Application": "developer_api",
         "X-PW-UserEmail": "{{ user_email }}",
         "Content-Type": "application/json",
         "Accept": "application/json",
     }
+    children: List = []
+    parent = ""
+    data_key = ""
+    parent_bookmark_key = ""
+    http_method = "POST"
 
-    # Pagination / response parsing
-    page_size: int = 200
-    next_page_key: str = ""  # e.g. "next_token"
-    pagination_in: Optional[str] = None  # "params" | "body" | None
-    page_number_field: str = "page_number"
-    page_size_field: str = "page_size"
-    data_key: Optional[str] = None  # None=list response; "items" for dict payloads
-
-    # Parent/child
-    children: List[str] = []
-    parent: str = ""  # parent tap_stream_id if any
-    parent_bookmark_key: str = ""
-
-    def __init__(self, client: Any = None, catalog: Any = None) -> None:
-        """Initialize stream with client and catalog-derived schema/metadata."""
+    def __init__(self, client=None, catalog=None) -> None:
         self.client = client
         self.catalog = catalog
         self.schema = catalog.schema.to_dict()
         self.metadata = metadata.to_map(catalog.metadata)
-        self.child_to_sync: List[BaseStream] = []
+        self.child_to_sync: List = []
         self.params: Dict[str, Any] = {}
         self.data_payload: Dict[str, Any] = {}
-        # Keep instance attrs <= 7 for pylint.
-
-    # ----- required stream descriptors -------------------------------------------------
+        self.page_size = self.client.config.get("page_size", 999)
 
     @property
     @abstractmethod
     def tap_stream_id(self) -> str:
-        """Unique identifier for the stream (may differ from file/class name)."""
+        """Unique identifier for the stream.
+
+        This is allowed to be different from the name of the stream, in
+        order to allow for sources that have duplicate stream names.
+        """
 
     @property
     @abstractmethod
     def replication_method(self) -> str:
-        """Singer replication method: 'INCREMENTAL' or 'FULL_TABLE'."""
+        """Defines the sync mode of a stream."""
 
     @property
     @abstractmethod
-    def replication_keys(self) -> List[str]:
-        """Replication key(s) used for INCREMENTAL syncs."""
+    def replication_keys(self) -> List:
+        """Defines the replication key for incremental sync mode of a
+        stream."""
 
     @property
     @abstractmethod
-    def key_properties(self) -> Tuple[str, ...]:
-        """Primary key column(s)."""
+    def key_properties(self) -> Tuple[str, str]:
+        """List of key properties for stream."""
 
-    # ----- helpers --------------------------------------------------------------------
+    def is_selected(self):
+        return metadata.get(self.metadata, (), "selected")
 
-    def is_selected(self) -> bool:
-        """Return True if the stream is selected in the catalog."""
-        return bool(metadata.get(self.metadata, (), "selected"))
-
-    def write_schema(self) -> None:
-        """Emit the schema to Singer."""
-        try:
-            write_schema(self.tap_stream_id, self.schema, self.key_properties)
-        except OSError as err:
-            LOGGER.error("Failed writing schema for %s: %s", self.tap_stream_id, err)
-            raise
-
-    def update_params(self, **kwargs: Any) -> None:
-        """Merge query params for the next request."""
-        self.params.update(kwargs)
-
-    def update_data_payload(self, **kwargs: Any) -> None:
-        """Merge JSON body fields for the next request."""
-        self.data_payload.update(kwargs)
-
-    def get_url_endpoint(self, parent_obj: Optional[Dict[str, Any]] = None) -> str:
-        """Resolve the absolute endpoint URL."""
-        del parent_obj  # unused by default
-        if self.url_endpoint:
-            return self.url_endpoint
-        return f"{self.client.base_url}/{str(self.path).lstrip('/')}"
-
-    def modify_object(
+    @abstractmethod
+    def sync(
         self,
-        record: Dict[str, Any],
-        _parent_record: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
-        """Hook for subclasses to tweak a record before writing."""
-        return record
+        state: Dict,
+        transformer: Transformer,
+        parent_obj: Dict = None,
+    ) -> Dict:
+        """
+        Performs a replication sync for the stream.
+        ~~~
+        Args:
+         - state (dict): represents the state file for the tap.
+         - transformer (object): A Object of the singer.transformer class.
+         - parent_obj (dict): The parent object for the stream.
 
-    # ----- pagination -----------------------------------------------------------------
+        Returns:
+         - bool: The return value. True for success, False otherwise.
 
-    def update_pagination_key(self, response: Dict[str, Any]) -> Optional[Any]:
-        """Extract and store a pagination token if present."""
-        if not self.next_page_key:
-            return None
-        token = response.get(self.next_page_key)
-        if not token:
-            return None
-        if self.pagination_in == "params":
-            self.params[self.next_page_key] = token
-        elif self.pagination_in == "body":
-            self.data_payload[self.next_page_key] = token
-        return token
+        Docs:
+         - https://github.com/singer-io/getting-started/blob/master/docs/SYNC_MODE.md
+        """
 
-    def _extract_records(self, response: Any) -> List[Dict[str, Any]]:
-        """Return a list of record dicts from either list or dict responses."""
-        if isinstance(response, list):
-            return response
-        if isinstance(response, dict):
-            if self.data_key is None:
-                return []
-            raw = response.get(self.data_key, [])
-            return raw if isinstance(raw, list) else []
-        return []
 
-    def _response_has_more(self, response: Dict[str, Any]) -> Optional[bool]:
-        """Try to infer 'has more' from common fields; return None if unknown."""
-        # Prefer explicit hints if the API offers them
-        for key in ("has_more", "hasMore", "has_next_page", "hasNextPage"):
-            if key in response:
-                return bool(response.get(key))
-        # Some APIs provide a next-page token under known keys
-        for key in ("next_page", "nextPage", "next", "nextToken", "next_token"):
-            if response.get(key):
-                return True
-        return None
-
-    def get_records(self) -> Iterator[Dict[str, Any]]:
-        """Drive HTTP calls and iterate paginated results."""
-        next_page: Any = 1
+    def get_records(self) -> Iterator:
+        """Interacts with api client and pagination (token or page key)."""
+        next_page = 1
         while next_page:
             response = self.client.make_request(
                 self.http_method,
                 self.get_url_endpoint(),
                 self.params,
                 self.headers,
-                body=self.data_payload,
+                body=self.data_payload,  # pass dict; client handles JSON encoding
                 path=self.path,
             )
+            raw_records = response.get(self.data_key, [])
+            next_page = response.get(self.next_page_key)
 
-            records: List[Dict[str, Any]]
-            if isinstance(response, list):
-                records = response
-                next_page = None
-            elif isinstance(response, dict):
-                records = self._extract_records(response)
+            self.params[self.next_page_key] = next_page
+            yield from raw_records
 
-                # 1) Prefer token-based pagination if configured
-                next_page = self.update_pagination_key(response)
+    def write_schema(self) -> None:
+        """
+        Write a schema message.
+        """
+        try:
+            write_schema(self.tap_stream_id, self.schema, self.key_properties)
+        except OSError as err:
+            LOGGER.error(
+                "OS Error while writing schema for: {}".format(self.tap_stream_id)
+            )
+            raise err
 
-                # 2) If token wasn't set, prefer explicit end-of-data indicators
-                if not next_page and self.page_number_field in self.data_payload:
-                    explicit_more = self._response_has_more(response)
+    def update_params(self, **kwargs) -> None:
+        """Update params for the stream; include page_size if configured."""
+        if isinstance(self.page_size, int) and self.page_size > 0:
+            # Only add if user configured a positive size; Copper APIs vary
+            self.params.setdefault("page_size", self.page_size)
+        self.params.update(kwargs)
 
-                    size_val = self.data_payload.get(self.page_size_field, self.page_size)
-                    page_size = int(size_val) if size_val is not None else 0
+    def update_data_payload(self, parent_obj: Dict = None, **kwargs) -> Dict:
+        """Update JSON body for the stream (parent_obj ignored by default)."""
+        del parent_obj  # kept for API compatibility with references
+        self.data_payload.update(kwargs)
+        return self.data_payload
 
-                    if explicit_more is not None:
-                        # Trust the API's explicit signal
-                        if explicit_more:
-                            current = int(self.data_payload.get(self.page_number_field, 1))
-                            self.data_payload[self.page_number_field] = current + 1
-                            next_page = True
-                        else:
-                            next_page = None
-                    else:
-                        # 3) Fallback heuristic: if the page is shorter than page_size, stop;
-                        #    else, assume there might be more.
-                        if page_size > 0 and len(records) < page_size:
-                            next_page = None
-                        else:
-                            current = int(self.data_payload.get(self.page_number_field, 1))
-                            self.data_payload[self.page_number_field] = current + 1
-                            next_page = True
-            else:
-                records = []
-                next_page = None
+    def modify_object(self, record: Dict, parent_record: Dict = None) -> Dict:
+        """
+        Modify the record before writing to the stream
+        """
+        return record
 
-            yield from records
+    def get_url_endpoint(self, parent_obj: Dict = None) -> str:
+        """Get the URL endpoint for the stream."""
+        del parent_obj
+        if self.url_endpoint:
+            return self.url_endpoint
+        base = getattr(self.client, "base_url", "").rstrip("/")
+        return f"{base}/{str(self.path).lstrip('/')}"
 
 
 class IncrementalStream(BaseStream):
-    """Reference-style incremental stream with bookmark helpers."""
+    """Base Class for Incremental Stream."""
 
-    def _start_value(self) -> int:
-        """Fallback start date when config omits it (keeps legacy jobs running)."""
-        raw = self.client.config.get("start_date", 0)
-        try:
-            return int(raw)
-        except (TypeError, ValueError):
-            return 0
+    def get_bookmark(self, state: dict, stream: str, key: Any = None) -> int:
+        """A wrapper for singer.get_bookmark to deal with compatibility for
+        bookmark values or start values."""
+        return get_bookmark(
+            state,
+            stream,
+            key or self.replication_keys[0],
+            self.client.config["start_date"],
+        )
 
-    def get_bookmark(
-        self, state: Dict[str, Any], stream: str, key: Optional[str] = None
-    ) -> int:
-        """Read a bookmark value with a safe default."""
-        return get_bookmark(state, stream, key or self.replication_keys[0], self._start_value())
-
-    def write_bookmark(
-        self,
-        state: Dict[str, Any],
-        stream: str,
-        key: Optional[str] = None,
-        value: Optional[int] = None,
-    ) -> Dict[str, Any]:
-        """Write a bookmark using max(current, value)."""
+    def write_bookmark(self, state: dict, stream: str, key: Any = None, value: Any = None) -> Dict:
+        """A wrapper for singer.get_bookmark to deal with compatibility for
+        bookmark values or start values."""
         if not (key or self.replication_keys):
             return state
-        current = get_bookmark(state, stream, key or self.replication_keys[0], self._start_value())
-        new_val = max(int(current or 0), int(value or 0))
-        return write_bookmark(state, stream, key or self.replication_keys[0], new_val)
+
+        current_bookmark = get_bookmark(state, stream, key or self.replication_keys[0], self.client.config["start_date"])
+        value = max(current_bookmark, value)
+        return write_bookmark(
+            state, stream, key or self.replication_keys[0], value
+        )
+
 
     def sync(
         self,
-        state: Dict[str, Any],
+        state: Dict,
         transformer: Transformer,
-        parent_obj: Optional[Dict[str, Any]] = None,
-    ) -> int:
-        """Default incremental implementation."""
-        bookmark = self.get_bookmark(state, self.tap_stream_id)
-        current_max = bookmark
+        parent_obj: Dict = None,
+    ) -> Dict:
+        """Implementation for `type: Incremental` stream."""
+        bookmark_date = self.get_bookmark(state, self.tap_stream_id)
+        current_max_bookmark_date = bookmark_date
+        self.update_params(updated_since=bookmark_date)
+        self.update_data_payload(parent_obj=parent_obj)
 
-        # Opt-in to page_number/page_size if a valid positive page size is set.
-        if isinstance(self.page_size, int) and self.page_size > 0:
-            self.update_data_payload(
-                **{self.page_size_field: self.page_size, self.page_number_field: 1}
-            )
-
-        # Be liberal: some endpoints expect query param, others expect body field.
-        self.update_params(updated_since=bookmark)
-        self.update_data_payload(minimum_modified_date=bookmark)
-
-        # Ensure endpoint is computed (no assignment to avoid unused-var).
-        self.get_url_endpoint(parent_obj)
+        self.url_endpoint = self.get_url_endpoint(parent_obj)
 
         with metrics.record_counter(self.tap_stream_id) as counter:
             for record in self.get_records():
                 record = self.modify_object(record, parent_obj)
-                transformed = transformer.transform(record, self.schema, self.metadata)
+                transformed_record = transformer.transform(
+                    record, self.schema, self.metadata
+                )
 
-                rk_name = self.replication_keys[0] if self.replication_keys else None
-                record_ts = transformed.get(rk_name) if rk_name else None
-                if record_ts is None:
-                    continue
-
-                try:
-                    record_ts_int = int(record_ts)
-                except (TypeError, ValueError):
-                    # If schema later moves to ISO strings, skip non-int safely.
-                    continue
-
-                if record_ts_int >= int(bookmark):
+                record_bookmark = transformed_record[self.replication_keys[0]]
+                if record_bookmark >= bookmark_date:
                     if self.is_selected():
-                        write_record(self.tap_stream_id, transformed)
+                        write_record(self.tap_stream_id, transformed_record)
                         counter.increment()
 
-                    current_max = max(current_max, record_ts_int)
+                    current_max_bookmark_date = max(
+                        current_max_bookmark_date, record_bookmark
+                    )
 
                     for child in self.child_to_sync:
                         child.sync(state=state, transformer=transformer, parent_obj=record)
 
-            self.write_bookmark(state, self.tap_stream_id, value=current_max)
+            state = self.write_bookmark(state, self.tap_stream_id, value=current_max_bookmark_date)
             return counter.value
 
 
 class FullTableStream(BaseStream):
-    """Reference-style full-table stream."""
+    """Base Class for Incremental Stream."""
 
-    replication_keys: List[str] = []
+    replication_keys = []
 
     def sync(
         self,
-        state: Dict[str, Any],
+        state: Dict,
         transformer: Transformer,
-        parent_obj: Optional[Dict[str, Any]] = None,
-    ) -> int:
-        """Default full-table implementation."""
-        # Opt-in to page_number/page_size for search-style endpoints (only if valid).
-        if isinstance(self.page_size, int) and self.page_size > 0:
-            self.update_data_payload(
-                **{self.page_size_field: self.page_size, self.page_number_field: 1}
-            )
-
-        # Ensure endpoint is computed (no assignment to avoid unused-var).
-        self.get_url_endpoint(parent_obj)
-
+        parent_obj: Dict = None,
+    ) -> Dict:
+        """Abstract implementation for `type: Fulltable` stream."""
+        self.url_endpoint = self.get_url_endpoint(parent_obj)
+        self.update_data_payload(parent_obj=parent_obj)
+        self.update_params()
         with metrics.record_counter(self.tap_stream_id) as counter:
             for record in self.get_records():
-                transformed = transformer.transform(record, self.schema, self.metadata)
+                transformed_record = transformer.transform(
+                    record, self.schema, self.metadata
+                )
                 if self.is_selected():
-                    write_record(self.tap_stream_id, transformed)
+                    write_record(self.tap_stream_id, transformed_record)
                     counter.increment()
 
                 for child in self.child_to_sync:
@@ -331,18 +256,51 @@ class FullTableStream(BaseStream):
             return counter.value
 
 
+class ParentBaseStream(IncrementalStream):
+    """Base Class for Parent Stream."""
+
+    def get_bookmark(self, state: Dict, stream: str, key: Any = None) -> int:
+        """A wrapper for singer.get_bookmark to deal with compatibility for
+        bookmark values or start values."""
+
+        min_parent_bookmark = (
+            super().get_bookmark(state, stream) if self.is_selected() else None
+        )
+        for child in self.child_to_sync:
+            bookmark_key = f"{self.tap_stream_id}_{self.replication_keys[0]}"
+            child_bookmark = super().get_bookmark(state, child.tap_stream_id, key=bookmark_key)
+            min_parent_bookmark = (
+                min(min_parent_bookmark, child_bookmark)
+                if min_parent_bookmark is not None
+                else child_bookmark
+            )
+        return min_parent_bookmark if min_parent_bookmark is not None else super().get_bookmark(state, stream)
+
+    def write_bookmark(
+        self, state: Dict, stream: str, key: Any = None, value: Any = None
+    ) -> Dict:
+        """A wrapper for singer.get_bookmark to deal with compatibility for
+        bookmark values or start values."""
+        if self.is_selected():
+            super().write_bookmark(state, stream, value=value)
+
+        for child in self.child_to_sync:
+            bookmark_key = f"{self.tap_stream_id}_{self.replication_keys[0]}"
+            super().write_bookmark(state, child.tap_stream_id, key=bookmark_key, value=value)
+
+        return state
+
+
 class ChildBaseStream(IncrementalStream):
-    """Small helper so imports like `from ...abstracts import ChildBaseStream` work."""
+    """Base Class for Child Stream."""
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        """Cache a single bookmark value for children to avoid repeated lookups."""
-        super().__init__(*args, **kwargs)
-        self.bookmark_value: Optional[int] = None
+    def get_url_endpoint(self, parent_obj=None):
+        """Prepare URL endpoint for child streams."""
+        base = getattr(self.client, "base_url", "").rstrip("/")
+        return f"{base}/{self.path.format(parent_obj['id'])}"
 
-    def get_bookmark(
-        self, state: Dict[str, Any], stream: str, key: Optional[str] = None
-    ) -> int:
-        """Return a cached bookmark value for this child stream."""
+    def get_bookmark(self, state: Dict, stream: str, key: Any = None) -> int:
+        """Singleton bookmark value for child streams."""
         if self.bookmark_value is None:
-            self.bookmark_value = super().get_bookmark(state, stream, key)
-        return cast(int, self.bookmark_value)
+            self.bookmark_value = super().get_bookmark(state, stream)
+        return self.bookmark_value
