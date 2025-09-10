@@ -35,7 +35,7 @@ def raise_for_error(response: requests.Response) -> None:
             ).get("message", "Unknown Error")
             message = f"HTTP-error-code: {response.status_code}, Error: {response_json.get('message', error_message)}"
         exc = ERROR_CODE_EXCEPTION_MAPPING.get(response.status_code, {}).get(
-            "raise_exception", copperError
+            "raise_exception", CopperError
         )
         raise exc(message, response) from None
 

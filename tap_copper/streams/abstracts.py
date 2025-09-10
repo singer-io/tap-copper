@@ -42,6 +42,10 @@ class BaseStream(ABC):
     data_key = ""
     parent_bookmark_key = ""
     http_method = "POST"
+    # Pagination field names (default values)
+    page_number_field = "page_number"
+    page_size_field = "page_size"
+
 
     def __init__(self, client=None, catalog=None) -> None:
         self.client = client
@@ -279,12 +283,12 @@ class ParentBaseStream(IncrementalStream):
         """A wrapper for singer.get_bookmark to deal with compatibility for
         bookmark values or start values."""
         if self.is_selected():
-            super().write_bookmark(state, stream, value=value)
+            super().write_bookmark(state, stream, key=key, value=value)
 
         for child in self.child_to_sync:
             bookmark_key = f"{self.tap_stream_id}_{self.replication_keys[0]}"
             super().write_bookmark(
-                state, child.tap_stream_id, key=bookmark_key, value=value
+                state, stream=child.tap_stream_id, key=bookmark_key, value=value
             )
 
         return state
@@ -292,6 +296,10 @@ class ParentBaseStream(IncrementalStream):
 
 class ChildBaseStream(IncrementalStream):
     """Base Class for Child Stream."""
+
+    def __init__(self, client=None, catalog=None) -> None:
+        super().__init__(client, catalog)
+        self.bookmark_value = None # pylint fix
 
     def get_url_endpoint(self, parent_obj=None):
         """Prepare URL endpoint for child streams."""
