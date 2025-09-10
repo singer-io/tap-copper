@@ -1,6 +1,7 @@
+"""Base stream abstractions for tap-copper"""
+
 from abc import ABC, abstractmethod
-import json
-from typing import Any, Dict, Tuple, List, Iterator
+from typing import Any, Dict, Tuple, List, Iterator  # noqa: F401
 from singer import (
     Transformer,
     get_bookmark,
@@ -9,7 +10,7 @@ from singer import (
     write_bookmark,
     write_record,
     write_schema,
-    metadata
+    metadata,
 )
 
 LOGGER = get_logger()
@@ -72,8 +73,7 @@ class BaseStream(ABC):
     @property
     @abstractmethod
     def replication_keys(self) -> List:
-        """Defines the replication key for incremental sync mode of a
-        stream."""
+        """Defines the replication key for incremental sync mode of a stream."""
 
     @property
     @abstractmethod
@@ -174,13 +174,23 @@ class IncrementalStream(BaseStream):
             self.client.config["start_date"],
         )
 
-    def write_bookmark(self, state: dict, stream: str, key: Any = None, value: Any = None) -> Dict:
-        """A wrapper for singer.get_bookmark to deal with compatibility for
-        bookmark values or start values."""
+    def write_bookmark(
+        self,
+        state: dict,
+        stream: str,
+        key: Any = None,
+        value: Any = None,
+    ) -> Dict:
+        """Write bookmark using max(current, value)."""
         if not (key or self.replication_keys):
             return state
 
-        current_bookmark = get_bookmark(state, stream, key or self.replication_keys[0], self.client.config["start_date"])
+        current_bookmark = get_bookmark(
+            state,
+            stream,
+            key or self.replication_keys[0],
+            self.client.config["start_date"],
+        )
         value = max(current_bookmark, value)
         return write_bookmark(
             state, stream, key or self.replication_keys[0], value
@@ -193,10 +203,13 @@ class IncrementalStream(BaseStream):
         parent_obj: Dict = None,
     ) -> Dict:
         """Implementation for `type: Incremental` stream."""
-        bookmark_date = self.get_bookmark(state, self.tap_stream_id)  # pylint: disable=too-many-function-args
+        # Use keyword args to keep pylint error free
+        bookmark_date = self.get_bookmark(
+            state=state, stream=self.tap_stream_id
+        )
         current_max_bookmark_date = bookmark_date
         self.update_params(updated_since=bookmark_date)
-        self.update_data_payload(parent_obj)
+        self.update_data_payload(parent_obj=parent_obj)
         self.url_endpoint = self.get_url_endpoint(parent_obj)
 
         with metrics.record_counter(self.tap_stream_id) as counter:
@@ -217,9 +230,18 @@ class IncrementalStream(BaseStream):
                     )
 
                     for child in self.child_to_sync:
-                        child.sync(state=state, transformer=transformer, parent_obj=record)
+                        child.sync(
+                            state=state,
+                            transformer=transformer,
+                            parent_obj=record,
+                        )
 
-            state = self.write_bookmark(state, self.tap_stream_id, value=current_max_bookmark_date)  # pylint: disable=too-many-function-args
+            # Use keyword args to keep pylint error free
+            state = self.write_bookmark(
+                state=state,
+                stream=self.tap_stream_id,
+                value=current_max_bookmark_date,
+            )
             return counter.value
 
 
@@ -236,7 +258,7 @@ class FullTableStream(BaseStream):
     ) -> Dict:
         """Abstract implementation for `type: Fulltable` stream."""
         self.url_endpoint = self.get_url_endpoint(parent_obj)
-        self.update_data_payload(parent_obj)
+        self.update_data_payload(parent_obj=parent_obj)
         with metrics.record_counter(self.tap_stream_id) as counter:
             for record in self.get_records():
                 transformed_record = transformer.transform(
@@ -247,7 +269,11 @@ class FullTableStream(BaseStream):
                     counter.increment()
 
                 for child in self.child_to_sync:
-                    child.sync(state=state, transformer=transformer, parent_obj=record)
+                    child.sync(
+                        state=state,
+                        transformer=transformer,
+                        parent_obj=record,
+                    )
 
             return counter.value
 
@@ -258,14 +284,17 @@ class ParentBaseStream(IncrementalStream):
     def get_bookmark(self, state: Dict, stream: str, key: Any = None) -> int:
         """A wrapper for singer.get_bookmark to deal with compatibility for
         bookmark values or start values."""
+
         min_parent_bookmark = (
-            super().get_bookmark(state, stream) if self.is_selected() else None
-        ) # pylint: disable=too-many-function-args
+            super().get_bookmark(state=state, stream=stream)
+            if self.is_selected()
+            else None
+        )
         for child in self.child_to_sync:
             bookmark_key = f"{self.tap_stream_id}_{self.replication_keys[0]}"
             child_bookmark = super().get_bookmark(
-                state, child.tap_stream_id, key=bookmark_key
-            ) # pylint: disable=too-many-function-args
+                state=state, stream=child.tap_stream_id, key=bookmark_key
+            )
             min_parent_bookmark = (
                 min(min_parent_bookmark, child_bookmark)
                 if min_parent_bookmark
@@ -275,16 +304,26 @@ class ParentBaseStream(IncrementalStream):
         return min_parent_bookmark
 
     def write_bookmark(
-        self, state: Dict, stream: str, key: Any = None, value: Any = None
+        self,
+        state: Dict,
+        stream: str,
+        key: Any = None,
+        value: Any = None,
     ) -> Dict:
-        """A wrapper for singer.get_bookmark to deal with compatibility for
-        bookmark values or start values."""
+        """Write bookmark for parent and propagate to children."""
         if self.is_selected():
-            super().write_bookmark(state, stream, value=value)  # pylint: disable=too-many-function-args
+            super().write_bookmark(
+                state=state, stream=stream, key=key, value=value
+            )
 
         for child in self.child_to_sync:
             bookmark_key = f"{self.tap_stream_id}_{self.replication_keys[0]}"
-            super().write_bookmark(state, child.tap_stream_id, key=bookmark_key, value=value)  # pylint: disable=too-many-function-args
+            super().write_bookmark(
+                state=state,
+                stream=child.tap_stream_id,
+                key=bookmark_key,
+                value=value,
+            )
 
         return state
 
@@ -303,5 +342,7 @@ class ChildBaseStream(IncrementalStream):
     def get_bookmark(self, state: Dict, stream: str, key: Any = None) -> int:
         """Singleton bookmark value for child streams."""
         if not self.bookmark_value:
-            self.bookmark_value = super().get_bookmark(state, stream)  # pylint: disable=too-many-function-args
+            self.bookmark_value = super().get_bookmark(
+                state=state, stream=stream, key=key
+            )
         return self.bookmark_value
