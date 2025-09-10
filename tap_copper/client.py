@@ -1,125 +1,94 @@
-"""HTTP client for Copper API with auth, retries, metrics, and error handling."""
-
-from dataclasses import dataclass
 from typing import Any, Dict, Mapping, Optional, Tuple
-import json
-import time
 
 import backoff
+import time
 import requests
 from requests import session
-from requests.exceptions import (
-    Timeout,
-    ConnectionError as RequestsConnectionError,
-    ChunkedEncodingError,
-)
+from requests.exceptions import Timeout, ConnectionError, ChunkedEncodingError
 from singer import get_logger, metrics
 
-from tap_copper.exceptions import (
-    ERROR_CODE_EXCEPTION_MAPPING,
-    CopperBackoffError,
-    CopperError,
-    CopperRateLimitError,
-)
+from tap_copper.exceptions import ERROR_CODE_EXCEPTION_MAPPING, copperError, copperBackoffError
 
 LOGGER = get_logger()
 REQUEST_TIMEOUT = 300
 
 
-@dataclass
-class _RequestOptions:
-    """Internal container for request params."""
+def raise_for_error(response: requests.Response) -> None:
+    """Raises the associated response exception. Takes in a response object,
+    checks the status code, and throws the associated exception based on the
+    status code.
 
-    endpoint: Optional[str] = None
-    params: Optional[Dict[str, Any]] = None
-    headers: Optional[Dict[str, Any]] = None
-    body: Optional[Dict[str, Any]] = None
-    path: Optional[str] = None
+    :param resp: requests.Response object
+    """
+    try:
+        response_json = response.json()
+    except Exception:  # pylint: disable=broad-exception-caught
+        response_json = {}
+
+    if response.status_code not in [200, 201, 204]:
+        if response_json.get("error"):
+            message = (
+                f"HTTP-error-code: {response.status_code}, "
+                f"Error: {response_json.get('error')}"
+            )
+        else:
+            error_message = ERROR_CODE_EXCEPTION_MAPPING.get(
+                response.status_code, {}
+            ).get("message", "Unknown Error")
+            message = (
+                f"HTTP-error-code: {response.status_code}, "
+                f"Error: {response_json.get('message', error_message)}"
+            )
+        exc = ERROR_CODE_EXCEPTION_MAPPING.get(
+            response.status_code, {}
+        ).get("raise_exception", copperError)
+        raise exc(message, response) from None
 
 
 def _wait_if_retry_after(details) -> None:
-    """If the exception carries a retry_after, sleep exactly that long."""
-    exc = details.get("exception")
-    retry_after = getattr(exc, "retry_after", None)
-    if retry_after is not None:
-        LOGGER.warning("Retry-After honored: sleeping %s second(s)", retry_after)
-        time.sleep(retry_after)
-
-
-def _raise_for_error(response: requests.Response) -> None:
-    """Map non-2xx responses to domain exceptions with a helpful message."""
-    try:
-        payload = response.json()
-    except (ValueError, json.JSONDecodeError):
-        payload = {}
-
-    status = response.status_code
-    if status in (200, 201, 204):
-        return
-
-    msg = (
-        payload.get("error")
-        or payload.get("message")
-        or (
-            ", ".join(payload.get("errors", []))
-            if isinstance(payload.get("errors"), list)
-            else None
-        )
-        or response.text.strip()
-        or "Unknown Error"
-    )
-
-    mapping = ERROR_CODE_EXCEPTION_MAPPING.get(status, {})
-    exc_cls = mapping.get("raise_exception", CopperError)
-    default_msg = mapping.get("message", "Unknown Error")
-    full_msg = f"HTTP {status}: {msg or default_msg}"
-    raise exc_cls(full_msg, response) from None
+    """Backoff handler: sleep if exception has retry_after attribute."""
+    exc = details["exception"]
+    if hasattr(exc, "retry_after") and exc.retry_after is not None:
+        time.sleep(exc.retry_after)
 
 
 class Client:
-    """Copper HTTP client: auth, retries, metrics, and error handling."""
+    """
+    A Wrapper class.
+    ~~~
+    Performs:
+     - Authentication
+     - Response parsing
+     - HTTP Error handling and retry
+    """
 
     def __init__(self, config: Mapping[str, Any]) -> None:
-        self.config: Dict[str, Any] = dict(config or {})
+        self.config = config
         self._session = session()
-        base = self.config.get("base_url") or "https://api.copper.com/developer_api/v1"
-        self.base_url = base.rstrip("/")
-        timeout_val = self.config.get("request_timeout")
-        self.request_timeout = float(timeout_val) if timeout_val else REQUEST_TIMEOUT
+        self.base_url = "https://api.copper.com/developer_api/v1/"
+        config_request_timeout = config.get("request_timeout")
+        self.request_timeout = (
+            float(config_request_timeout) if config_request_timeout else REQUEST_TIMEOUT
+        )
 
     def __enter__(self):
-        self._validate_api_credentials()
+        self.check_api_credentials()
         return self
 
-    def __exit__(self, exc_type, exc, tb):
+    def __exit__(self, exception_type, exception_value, traceback):
         self._session.close()
 
-    # ---------- configuration / auth ----------
-
-    def _validate_api_credentials(self) -> None:
-        """Raise if required credentials are not present."""
+    def check_api_credentials(self) -> None:
+        """Validate presence of Copper credentials."""
         if not (self.config.get("api_key") or self.config.get("access_token")):
-            LOGGER.error("Missing Copper API credentials: api_key or access_token.")
-            raise CopperError(
-                "Missing required Copper API credentials: api_key or access_token."
-            )
+            raise copperError("Missing Copper credential: 'api_key' or 'access_token'.")
         if not (self.config.get("user_email") or self.config.get("email")):
-            LOGGER.error("Missing Copper user identity: user_email or email.")
-            raise CopperError(
-                "Missing required Copper user email: user_email or email."
-            )
+            raise copperError("Missing Copper credential: 'user_email' or 'email'.")
 
-    @staticmethod
-    def _strip_empty_keys(dct: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-        """Drop empty-string keys to avoid bad headers/params."""
-        if not isinstance(dct, dict):
-            return {}
-        return {k: v for k, v in dct.items() if isinstance(k, str) and k.strip()}
-
-    def _authenticate(self, headers: Dict, params: Dict) -> Tuple[Dict, Dict]:
-        """Attach Copper auth headers and sane defaults."""
-        headers = dict(self._strip_empty_keys(headers))
-        params = dict(self._strip_empty_keys(params))
+    def authenticate(self, headers: Dict, params: Dict) -> Tuple[Dict, Dict]:
+        """Attach Copper authentication headers."""
+        headers = dict(headers or {})
+        params = dict(params or {})
 
         api_key = self.config.get("api_key") or self.config.get("access_token")
         user_email = self.config.get("user_email") or self.config.get("email")
@@ -135,26 +104,29 @@ class Client:
 
         return headers, params
 
-    # ---------- public API ----------
-
-    def make_request(self, method: str, opts: _RequestOptions) -> Any:
-        """Builds and issues an HTTP request."""
-        params = opts.params or {}
-        headers = opts.headers or {}
-        body = opts.body or {}
-        endpoint = opts.endpoint
+    def make_request(  # pylint: disable=too-many-arguments, too-many-positional-arguments
+        self,
+        method: str,
+        endpoint: str,
+        params: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, Any]] = None,
+        body: Optional[Dict[str, Any]] = None,
+        path: Optional[str] = None,
+    ) -> Any:
+        """
+        Sends an HTTP request to the specified API endpoint.
+        """
+        params = params or {}
+        headers = headers or {}
+        body = body or {}
 
         if not endpoint:
-            endpoint = (
-                self.base_url
-                if not opts.path
-                else f"{self.base_url}/{str(opts.path).lstrip('/')}"
-            )
+            endpoint = f"{self.base_url}/{str(path).lstrip('/')}" if path else self.base_url
 
-        headers, params = self._authenticate(headers, params)
+        headers, params = self.authenticate(headers, params)
 
-        return self.__request(
-            method,
+        return self.__make_request(
+            method.upper(),
             endpoint,
             headers=headers,
             params=params,
@@ -162,71 +134,31 @@ class Client:
             timeout=self.request_timeout,
         )
 
-    # Public helpers expected by tests (keyword args allowed)
-    def get(
-        self,
-        endpoint: str,
-        *,
-        params: Optional[Dict] = None,
-        headers: Optional[Dict] = None,
-        path: Optional[str] = None,
-    ) -> Any:
-        """Thin GET wrapper used by tests/streams."""
-        opts = _RequestOptions(endpoint=endpoint, params=params, headers=headers, path=path)
-        return self.make_request("GET", opts)
-
-    def post(   # pylint: disable=too-many-arguments
-        self,
-        endpoint: str,
-        *,
-        params: Optional[Dict] = None,
-        headers: Optional[Dict] = None,
-        body: Optional[Dict] = None,
-        path: Optional[str] = None,
-    ) -> Any:
-        """Thin POST wrapper used by tests/streams."""
-        opts = _RequestOptions(
-            endpoint=endpoint, params=params, headers=headers, body=body, path=path
-        )
-        return self.make_request("POST", opts)
-
-    # ---------- low-level HTTP ----------
-
     @backoff.on_exception(
         wait_gen=lambda: backoff.expo(factor=2),
         on_backoff=_wait_if_retry_after,
         exception=(
             ConnectionResetError,
-            RequestsConnectionError,
+            ConnectionError,  # pylint: disable=redefined-builtin
             ChunkedEncodingError,
             Timeout,
-            CopperBackoffError,  # e.g. 429/5xx mapped errors
-            CopperRateLimitError,
+            #copperRateLimitError,
+            copperBackoffError,
         ),
         max_tries=5,
     )
-    def __request(
-        self,
-        method: str,
-        endpoint: str,
-        **kwargs: Any,
-    ) -> Optional[Mapping[str, Any]]:
-        """Perform the HTTP request with metrics and error mapping."""
-        method = (method or "").upper()
+    def __make_request(
+        self, method: str, endpoint: str, **kwargs
+    ) -> Optional[Mapping[Any, Any]]:
+        """Performs HTTP Operations."""
+        method = method.upper()
         with metrics.http_request_timer(endpoint):
-            if method == "GET":
-                # requests ignores 'json' for GET; remove to be explicit
-                kwargs.pop("json", None)
-            elif method != "POST":
+            if method in ("GET", "POST"):
+                if method == "GET":
+                    kwargs.pop("data", None)
+                response = self._session.request(method, endpoint, **kwargs)
+                raise_for_error(response)
+            else:
                 raise ValueError(f"Unsupported method: {method}")
 
-            response = self._session.request(method, endpoint, **kwargs)
-            _raise_for_error(response)
-
-            if response.status_code == 204:
-                return None
-
-            try:
-                return response.json()
-            except ValueError:
-                return None
+        return response.json()
