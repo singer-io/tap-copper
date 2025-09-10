@@ -1,13 +1,14 @@
-from typing import Any, Dict, Mapping, Optional, Tuple
+"""Client for handling Copper API requests, authentication, and retries."""
 
-import backoff
+from typing import Any, Dict, Mapping, Optional, Tuple
 import time
+import backoff
 import requests
 from requests import session
-from requests.exceptions import Timeout, ConnectionError, ChunkedEncodingError
+from requests.exceptions import Timeout, ConnectionError as RequestsConnectionError, ChunkedEncodingError
 from singer import get_logger, metrics
 
-from tap_copper.exceptions import ERROR_CODE_EXCEPTION_MAPPING, copperError, copperBackoffError
+from tap_copper.exceptions import ERROR_CODE_EXCEPTION_MAPPING, CopperError, CopperBackoffError
 
 LOGGER = get_logger()
 REQUEST_TIMEOUT = 300
@@ -27,21 +28,15 @@ def raise_for_error(response: requests.Response) -> None:
 
     if response.status_code not in [200, 201, 204]:
         if response_json.get("error"):
-            message = (
-                f"HTTP-error-code: {response.status_code}, "
-                f"Error: {response_json.get('error')}"
-            )
+            message = f"HTTP-error-code: {response.status_code}, Error: {response_json.get('error')}"
         else:
             error_message = ERROR_CODE_EXCEPTION_MAPPING.get(
                 response.status_code, {}
             ).get("message", "Unknown Error")
-            message = (
-                f"HTTP-error-code: {response.status_code}, "
-                f"Error: {response_json.get('message', error_message)}"
-            )
-        exc = ERROR_CODE_EXCEPTION_MAPPING.get(
-            response.status_code, {}
-        ).get("raise_exception", copperError)
+            message = f"HTTP-error-code: {response.status_code}, Error: {response_json.get('message', error_message)}"
+        exc = ERROR_CODE_EXCEPTION_MAPPING.get(response.status_code, {}).get(
+            "raise_exception", copperError
+        )
         raise exc(message, response) from None
 
 
@@ -66,10 +61,11 @@ class Client:
         self.config = config
         self._session = session()
         self.base_url = "https://api.copper.com/developer_api/v1/"
-        config_request_timeout = config.get("request_timeout")
-        self.request_timeout = (
-            float(config_request_timeout) if config_request_timeout else REQUEST_TIMEOUT
-        )
+        config_request_timeout = config.get("request_timeout", REQUEST_TIMEOUT)
+        if config_request_timeout and float(config_request_timeout) > 0:
+            self.request_timeout = float(config_request_timeout)
+        else:
+            self.request_timeout = REQUEST_TIMEOUT
 
     def __enter__(self):
         self.check_api_credentials()
@@ -79,28 +75,21 @@ class Client:
         self._session.close()
 
     def check_api_credentials(self) -> None:
-        """Validate presence of Copper credentials."""
-        if not (self.config.get("api_key") or self.config.get("access_token")):
-            raise copperError("Missing Copper credential: 'api_key' or 'access_token'.")
-        if not (self.config.get("user_email") or self.config.get("email")):
-            raise copperError("Missing Copper credential: 'user_email' or 'email'.")
+        """Validates API credentials (currently a placeholder)."""
+        pass
 
     def authenticate(self, headers: Dict, params: Dict) -> Tuple[Dict, Dict]:
         """Attach Copper authentication headers."""
         headers = dict(headers or {})
         params = dict(params or {})
 
-        api_key = self.config.get("api_key") or self.config.get("access_token")
-        user_email = self.config.get("user_email") or self.config.get("email")
-
-        if api_key:
-            headers["X-PW-AccessToken"] = api_key
-        if user_email:
-            headers["X-PW-UserEmail"] = user_email
-
+        # Set defaults
         headers.setdefault("X-PW-Application", "developer_api")
         headers.setdefault("Accept", "application/json")
         headers.setdefault("Content-Type", "application/json")
+
+        headers["X-PW-AccessToken"] = self.config.get("api_key")
+        headers["X-PW-UserEmail"] = self.config.get("user_email")
 
         return headers, params
 
@@ -139,11 +128,10 @@ class Client:
         on_backoff=_wait_if_retry_after,
         exception=(
             ConnectionResetError,
-            ConnectionError,  # pylint: disable=redefined-builtin
+            ConnectionError,
             ChunkedEncodingError,
             Timeout,
-            #copperRateLimitError,
-            copperBackoffError,
+            CopperBackoffError,
         ),
         max_tries=5,
     )

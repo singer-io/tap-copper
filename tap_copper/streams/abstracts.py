@@ -48,10 +48,9 @@ class BaseStream(ABC):
         self.catalog = catalog
         self.schema = catalog.schema.to_dict()
         self.metadata = metadata.to_map(catalog.metadata)
-        self.child_to_sync: List = []
-        self.params: Dict[str, Any] = {}
-        self.data_payload: Dict[str, Any] = {}
-        self.page_size = self.client.config.get("page_size", 999)
+        self.child_to_sync = []
+        self.params = {}
+        self.data_payload = {}
 
     @property
     @abstractmethod
@@ -113,7 +112,7 @@ class BaseStream(ABC):
                 self.get_url_endpoint(),
                 self.params,
                 self.headers,
-                body=self.data_payload,  # pass dict; client handles JSON encoding
+                body=self.data_payload,
                 path=self.path,
             )
             raw_records = response.get(self.data_key, [])
@@ -137,15 +136,14 @@ class BaseStream(ABC):
     def update_params(self, **kwargs) -> None:
         """Update params for the stream; include page_size if configured."""
         if isinstance(self.page_size, int) and self.page_size > 0:
-            # Only add if user configured a positive size; Copper APIs vary
             self.params.setdefault("page_size", self.page_size)
         self.params.update(kwargs)
 
-    def update_data_payload(self, parent_obj: Dict = None, **kwargs) -> Dict:
-        """Update JSON body for the stream (parent_obj ignored by default)."""
-        del parent_obj  # kept for API compatibility with references
+    def update_data_payload(self, **kwargs) -> None:
+        """
+        Update JSON body for the stream
+        """
         self.data_payload.update(kwargs)
-        return self.data_payload
 
     def modify_object(self, record: Dict, parent_record: Dict = None) -> Dict:
         """
@@ -154,12 +152,10 @@ class BaseStream(ABC):
         return record
 
     def get_url_endpoint(self, parent_obj: Dict = None) -> str:
-        """Get the URL endpoint for the stream."""
-        del parent_obj
-        if self.url_endpoint:
-            return self.url_endpoint
-        base = getattr(self.client, "base_url", "").rstrip("/")
-        return f"{base}/{str(self.path).lstrip('/')}"
+        """
+        Get the URL endpoint for the stream
+        """
+        return self.url_endpoint or f"{self.client.base_url}/{self.path}"
 
 
 class IncrementalStream(BaseStream):
@@ -198,8 +194,7 @@ class IncrementalStream(BaseStream):
         bookmark_date = self.get_bookmark(state, self.tap_stream_id)
         current_max_bookmark_date = bookmark_date
         self.update_params(updated_since=bookmark_date)
-        self.update_data_payload(parent_obj=parent_obj)
-
+        self.update_data_payload(parent_obj)
         self.url_endpoint = self.get_url_endpoint(parent_obj)
 
         with metrics.record_counter(self.tap_stream_id) as counter:
@@ -239,8 +234,7 @@ class FullTableStream(BaseStream):
     ) -> Dict:
         """Abstract implementation for `type: Fulltable` stream."""
         self.url_endpoint = self.get_url_endpoint(parent_obj)
-        self.update_data_payload(parent_obj=parent_obj)
-        self.update_params()
+        self.update_data_payload(parent_obj)
         with metrics.record_counter(self.tap_stream_id) as counter:
             for record in self.get_records():
                 transformed_record = transformer.transform(
@@ -268,13 +262,16 @@ class ParentBaseStream(IncrementalStream):
         )
         for child in self.child_to_sync:
             bookmark_key = f"{self.tap_stream_id}_{self.replication_keys[0]}"
-            child_bookmark = super().get_bookmark(state, child.tap_stream_id, key=bookmark_key)
+            child_bookmark = super().get_bookmark(
+                state, child.tap_stream_id, key=bookmark_key
+            )
             min_parent_bookmark = (
                 min(min_parent_bookmark, child_bookmark)
-                if min_parent_bookmark is not None
+                if min_parent_bookmark
                 else child_bookmark
             )
-        return min_parent_bookmark if min_parent_bookmark is not None else super().get_bookmark(state, stream)
+
+        return min_parent_bookmark
 
     def write_bookmark(
         self, state: Dict, stream: str, key: Any = None, value: Any = None
@@ -286,7 +283,9 @@ class ParentBaseStream(IncrementalStream):
 
         for child in self.child_to_sync:
             bookmark_key = f"{self.tap_stream_id}_{self.replication_keys[0]}"
-            super().write_bookmark(state, child.tap_stream_id, key=bookmark_key, value=value)
+            super().write_bookmark(
+                state, child.tap_stream_id, key=bookmark_key, value=value
+            )
 
         return state
 
@@ -296,11 +295,12 @@ class ChildBaseStream(IncrementalStream):
 
     def get_url_endpoint(self, parent_obj=None):
         """Prepare URL endpoint for child streams."""
-        base = getattr(self.client, "base_url", "").rstrip("/")
-        return f"{base}/{self.path.format(parent_obj['id'])}"
+        return f"{self.client.base_url}/{self.path.format(parent_obj['id'])}"
 
     def get_bookmark(self, state: Dict, stream: str, key: Any = None) -> int:
         """Singleton bookmark value for child streams."""
-        if self.bookmark_value is None:
+        if not self.bookmark_value:
+
             self.bookmark_value = super().get_bookmark(state, stream)
+
         return self.bookmark_value
