@@ -163,56 +163,27 @@ class BaseStream(ABC):
 class IncrementalStream(BaseStream):
     """Base Class for Incremental Stream."""
 
-    # [CircleCI fix] Make signature tolerant to different call shapes to avoid E1121
-    def get_bookmark(self, *args, **kwargs) -> int:  # pylint: disable=unused-argument
-        """Wrapper for singer.get_bookmark tolerant to positional/kw shapes."""
-        # Expected original shape: (state, stream, key=None)
-        state = kwargs.get("state", args[0] if len(args) > 0 else None)
-        stream = kwargs.get("stream", args[1] if len(args) > 1 else None)
-        key = kwargs.get("key", args[2] if len(args) > 2 else None)
-
-        if key is None and getattr(self, "replication_keys", None):
-            key = self.replication_keys[0]
-
+    def get_bookmark(self, state: dict, stream: str, key: Any = None) -> int:
+        """A wrapper for singer.get_bookmark to deal with compatibility for
+        bookmark values or start values."""
         return get_bookmark(
             state,
             stream,
-            key,
+            key or self.replication_keys[0],
             self.client.config["start_date"],
         )
 
-    # [CircleCI fix] Make signature tolerant to different call shapes to avoid E1121
-    def write_bookmark(self, *args, **kwargs) -> Dict:  # pylint: disable=unused-argument
-        """Wrapper for singer.write_bookmark tolerant to positional/kw shapes."""
-        # Expected original shape: (state, stream, key=None, value=None)
-        state = kwargs.get("state", args[0] if len(args) > 0 else None)
-        stream = kwargs.get("stream", args[1] if len(args) > 1 else None)
+    def write_bookmark(self, state: dict, stream: str, key: Any = None, value: Any = None) -> Dict:
+        """A wrapper for singer.get_bookmark to deal with compatibility for
+        bookmark values or start values."""
+        if not (key or self.replication_keys):
+            return state
 
-        key = kwargs.get("key", None)
-        value = kwargs.get("value", None)
-
-        # If not passed via kwargs, try to infer from positionals.
-        # Allow both (state, stream, value) and (state, stream, key, value).
-        if key is None and len(args) >= 4:
-            key = args[2]
-            value = args[3]
-        elif value is None and len(args) >= 3:
-            value = args[2]
-
-        if key is None and getattr(self, "replication_keys", None):
-            key = self.replication_keys[0]
-
-        current_bookmark = get_bookmark(state, stream, key, self.client.config["start_date"])
-        # Respect max of existing vs new value if provided
-        if value is None:
-            value = current_bookmark
-        else:
-            try:
-                value = max(current_bookmark, value)
-            except Exception:  # be defensive; keep current if incomparable
-                value = current_bookmark
-
-        return write_bookmark(state, stream, key, value)
+        current_bookmark = get_bookmark(state, stream, key or self.replication_keys[0], self.client.config["start_date"])
+        value = max(current_bookmark, value)
+        return write_bookmark(
+            state, stream, key or self.replication_keys[0], value
+        )
 
     def sync(
         self,
@@ -221,7 +192,7 @@ class IncrementalStream(BaseStream):
         parent_obj: Dict = None,
     ) -> Dict:
         """Implementation for `type: Incremental` stream."""
-        bookmark_date = self.get_bookmark(state, self.tap_stream_id)
+        bookmark_date = self.get_bookmark(state=state, stream=self.tap_stream_id)
         current_max_bookmark_date = bookmark_date
         self.update_params(updated_since=bookmark_date)
         self.update_data_payload(parent_obj)
@@ -247,7 +218,7 @@ class IncrementalStream(BaseStream):
                     for child in self.child_to_sync:
                         child.sync(state=state, transformer=transformer, parent_obj=record)
 
-            state = self.write_bookmark(state, self.tap_stream_id, value=current_max_bookmark_date)
+            state = self.write_bookmark(state=state, stream=self.tap_stream_id, value=current_max_bookmark_date)
             return counter.value
 
 
@@ -286,7 +257,6 @@ class ParentBaseStream(IncrementalStream):
     def get_bookmark(self, state: Dict, stream: str, key: Any = None) -> int:
         """A wrapper for singer.get_bookmark to deal with compatibility for
         bookmark values or start values."""
-        # [CircleCI pylint fix] Use keyword args to avoid arg-count lint at call sites
         min_parent_bookmark = (
             super().get_bookmark(state=state, stream=stream) if self.is_selected() else None
         )
@@ -308,7 +278,6 @@ class ParentBaseStream(IncrementalStream):
     ) -> Dict:
         """A wrapper for singer.get_bookmark to deal with compatibility for
         bookmark values or start values."""
-        # [CircleCI pylint fix] Use keyword args to avoid arg-count lint at call sites
         if self.is_selected():
             super().write_bookmark(state=state, stream=stream, key=key, value=value)
 
@@ -335,5 +304,5 @@ class ChildBaseStream(IncrementalStream):
     def get_bookmark(self, state: Dict, stream: str, key: Any = None) -> int:
         """Singleton bookmark value for child streams."""
         if not self.bookmark_value:
-            self.bookmark_value = super().get_bookmark(state, stream)
+            self.bookmark_value = super().get_bookmark(state=state, stream=stream, key=key)
         return self.bookmark_value
