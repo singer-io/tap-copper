@@ -20,7 +20,7 @@ def get_abs_path(path: str) -> str:
 
 def load_schema_references() -> Dict:
     """
-    Load the schema files from the schema/shared folder and return the schema references.
+    Load the schema files from the schema folder and return the schema references.
     """
     shared_schema_path = get_abs_path("schemas/shared")
 
@@ -34,7 +34,7 @@ def load_schema_references() -> Dict:
 
     refs = {}
     for shared_schema_file in shared_file_names:
-        with open(os.path.join(shared_schema_path, shared_schema_file), encoding="utf-8") as data_file:
+        with open(os.path.join(shared_schema_path, shared_schema_file)) as data_file:
             refs["shared/" + shared_schema_file] = json.load(data_file)
 
     return refs
@@ -50,8 +50,8 @@ def get_schemas() -> Tuple[Dict, Dict]:
 
     refs = load_schema_references()
     for stream_name, stream_obj in STREAMS.items():
-        schema_path = get_abs_path(f"schemas/{stream_name}.json")
-        with open(schema_path, encoding="utf-8") as file:
+        schema_path = get_abs_path("schemas/{}.json".format(stream_name))
+        with open(schema_path) as file:
             schema = json.load(file)
 
         schemas[stream_name] = schema

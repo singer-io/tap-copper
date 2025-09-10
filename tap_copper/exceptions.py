@@ -1,5 +1,6 @@
 """Exception classes for handling Copper API errors."""
 
+
 class CopperError(Exception):
     """Class representing a generic HTTP error."""
 
@@ -11,39 +12,41 @@ class CopperError(Exception):
 
 class CopperBackoffError(CopperError):
     """Class representing backoff error handling."""
-    ...
+    pass
 
 
 class CopperBadRequestError(CopperError):
     """Class representing 400 status code."""
+    pass
 
 
 class CopperUnauthorizedError(CopperError):
     """Class representing 401 status code."""
+    pass
 
 
 class CopperForbiddenError(CopperError):
     """Class representing 403 status code."""
+    pass
 
 
 class CopperNotFoundError(CopperError):
     """Class representing 404 status code."""
+    pass
 
 
 class CopperConflictError(CopperError):
-    """Class representing 406 status code."""
+    """Class representing 409 status code."""
+    pass
 
 
 class CopperUnprocessableEntityError(CopperBackoffError):
-    """Class representing 409 status code."""
+    """Class representing 422 status code."""
+    pass
 
 
 class CopperRateLimitError(CopperBackoffError):
     """Class representing 429 status code."""
-
-
-class CopperInternalServerError(CopperBackoffError):
-    """Class representing 500 status code."""
 
     def __init__(self, message: str | None = None, response=None) -> None:
         self.response = response
@@ -68,20 +71,29 @@ class CopperInternalServerError(CopperBackoffError):
         super().__init__(full_message, response=response)
 
 
+class CopperInternalServerError(CopperBackoffError):
+    """Class representing 500 status code."""
+    pass
+
+
 class CopperNotImplementedError(CopperBackoffError):
     """Class representing 501 status code."""
+    pass
 
 
 class CopperBadGatewayError(CopperBackoffError):
     """Class representing 502 status code."""
+    pass
 
 
 class CopperServiceUnavailableError(CopperBackoffError):
     """Class representing 503 status code."""
+    pass
 
 
 class CopperGatewayTimeout(CopperBackoffError):
     """Class representing 504 status code."""
+    pass
 
 
 ERROR_CODE_EXCEPTION_MAPPING = {
