@@ -44,11 +44,12 @@ class CopperUnprocessableEntityError(CopperBackoffError):
     """Class representing 422 status code."""
     pass
 
+from typing import Optional #fixing circle ci pylint error
 
 class CopperRateLimitError(CopperBackoffError):
     """Class representing 429 status code."""
 
-    def __init__(self, message: str | None = None, response=None) -> None:
+    def __init__(self, message: Optional[str] = None, response=None) -> None:
         self.response = response
         retry_after = None
 
