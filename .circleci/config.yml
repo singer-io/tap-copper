@@ -18,7 +18,7 @@ jobs:
       - run:
           name: "JSON Validator"
           command: |
-            source /usr/local/share/virtualenvs/tap-tester/bin/activate
+            source /usr/local/share/virtualenvs/tap-copper/bin/activate
             stitch-validate-json tap_copper/schemas/*.json
 
       - run:
@@ -35,7 +35,7 @@ jobs:
           command: |
             source /usr/local/share/virtualenvs/tap-copper/bin/activate
             pip install pytest pytest-cov
-            pytest tests/unittests --cov=tap_copper --cov-report=html --cov-report=term --junitxml=test_output/report.xml
+            pytest --cov=tap_copper --cov-report=htmlcov tests/unittests
             coverage html
 
       - store_test_results:
