@@ -1,5 +1,3 @@
-"""Base stream abstractions for tap-copper"""
-
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Tuple, List, Iterator  # noqa: F401
 from singer import (
@@ -14,6 +12,7 @@ from singer import (
 )
 
 LOGGER = get_logger()
+DEFAULT_PAGE_SIZE = 100
 
 
 class BaseStream(ABC):
@@ -107,7 +106,8 @@ class BaseStream(ABC):
 
     def get_records(self) -> Iterator:
         """Interacts with api client interaction and pagination."""
-        self.params[""] = self.page_size
+        self.params["page_size"] = self.client.config.get("page_size", DEFAULT_PAGE_SIZE)
+
         next_page = 1
         while next_page:
             response = self.client.make_request(
@@ -181,7 +181,9 @@ class IncrementalStream(BaseStream):
         key: Any = None,
         value: Any = None,
     ) -> Dict:
-        """Write bookmark using max(current, value)."""
+        
+        """A wrapper for singer.get_bookmark to deal with compatibility for
+        bookmark values or start values."""
         if not (key or self.replication_keys):
             return state
 
@@ -193,7 +195,10 @@ class IncrementalStream(BaseStream):
         )
         value = max(current_bookmark, value)
         return write_bookmark(
-            state, stream, key or self.replication_keys[0], value
+            state, 
+            stream, 
+            key or self.replication_keys[0], 
+            value
         )
 
     def sync(
@@ -203,9 +208,9 @@ class IncrementalStream(BaseStream):
         parent_obj: Dict = None,
     ) -> Dict:
         """Implementation for `type: Incremental` stream."""
-        # Use keyword args to keep pylint error free
         bookmark_date = self.get_bookmark(
-            state=state, stream=self.tap_stream_id
+            state=state,
+            stream=self.tap_stream_id
         )
         current_max_bookmark_date = bookmark_date
         self.update_params(updated_since=bookmark_date)
@@ -236,7 +241,6 @@ class IncrementalStream(BaseStream):
                             parent_obj=record,
                         )
 
-            # Use keyword args to keep pylint error free
             state = self.write_bookmark(
                 state=state,
                 stream=self.tap_stream_id,
@@ -293,7 +297,9 @@ class ParentBaseStream(IncrementalStream):
         for child in self.child_to_sync:
             bookmark_key = f"{self.tap_stream_id}_{self.replication_keys[0]}"
             child_bookmark = super().get_bookmark(
-                state=state, stream=child.tap_stream_id, key=bookmark_key
+                state=state,
+                stream=child.tap_stream_id,
+                key=bookmark_key
             )
             min_parent_bookmark = (
                 min(min_parent_bookmark, child_bookmark)
@@ -313,7 +319,10 @@ class ParentBaseStream(IncrementalStream):
         """Write bookmark for parent and propagate to children."""
         if self.is_selected():
             super().write_bookmark(
-                state=state, stream=stream, key=key, value=value
+                state=state,
+                stream=stream, 
+                key=key, 
+                value=value
             )
 
         for child in self.child_to_sync:
@@ -333,7 +342,7 @@ class ChildBaseStream(IncrementalStream):
 
     def __init__(self, client=None, catalog=None) -> None:
         super().__init__(client, catalog)
-        self.bookmark_value = None  # pylint fix
+        self.bookmark_value = None
 
     def get_url_endpoint(self, parent_obj=None):
         """Prepare URL endpoint for child streams."""
@@ -343,6 +352,8 @@ class ChildBaseStream(IncrementalStream):
         """Singleton bookmark value for child streams."""
         if not self.bookmark_value:
             self.bookmark_value = super().get_bookmark(
-                state=state, stream=stream, key=key
+                state=state, 
+                stream=stream, 
+                key=key
             )
         return self.bookmark_value

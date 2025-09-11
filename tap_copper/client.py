@@ -1,11 +1,9 @@
-"""Client for handling Copper API requests, authentication, and retries."""
-
 from typing import Any, Dict, Mapping, Optional, Tuple
 import time
 import backoff
 import requests
 from requests import session
-from requests.exceptions import Timeout, ConnectionError as RequestsConnectionError, ChunkedEncodingError
+from requests.exceptions import Timeout, ConnectionError, ChunkedEncodingError
 from singer import get_logger, metrics
 
 from tap_copper.exceptions import ERROR_CODE_EXCEPTION_MAPPING, CopperError, CopperBackoffError
@@ -75,7 +73,6 @@ class Client:
         self._session.close()
 
     def check_api_credentials(self) -> None:
-        """Validates API credentials (currently a placeholder)."""
         pass
 
     def authenticate(self, headers: Dict, params: Dict) -> Tuple[Dict, Dict]:
@@ -108,10 +105,7 @@ class Client:
         params = params or {}
         headers = headers or {}
         body = body or {}
-
-        if not endpoint:
-            endpoint = f"{self.base_url}/{str(path).lstrip('/')}" if path else self.base_url
-
+        endpoint = endpoint or f"{self.base_url}/{path}"
         headers, params = self.authenticate(headers, params)
 
         return self.__make_request(
@@ -124,7 +118,7 @@ class Client:
         )
 
     @backoff.on_exception(
-        wait_gen=lambda: backoff.expo(factor=2),
+        wait_gen=backoff.expo,
         on_backoff=_wait_if_retry_after,
         exception=(
             ConnectionResetError,
@@ -134,6 +128,7 @@ class Client:
             CopperBackoffError,
         ),
         max_tries=5,
+        factor=2,
     )
     def __make_request(
         self, method: str, endpoint: str, **kwargs
