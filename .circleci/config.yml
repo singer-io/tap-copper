@@ -13,7 +13,7 @@ jobs:
             python3 -mvenv /usr/local/share/virtualenvs/tap-copper
             source /usr/local/share/virtualenvs/tap-copper/bin/activate
             pip install -U "pip==22.2.2" "setuptools==65.3.0"
-            pip install .[dev]
+            pip install -e .[dev]
 
       - run:
           name: "JSON Validator"
