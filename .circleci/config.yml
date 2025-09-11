@@ -35,7 +35,7 @@ jobs:
           command: |
             source /usr/local/share/virtualenvs/tap-copper/bin/activate
             pip install pytest pytest-cov
-            pytest --cov=tap_copper --cov-report=htmlcov tests/unittests
+            pytest --cov=tap_copper --cov-report=html tests/unittests
             coverage html
 
       - store_test_results:
