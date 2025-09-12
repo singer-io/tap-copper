@@ -5,7 +5,7 @@ from tap_copper.streams.abstracts import FullTableStream
 class Users(FullTableStream):
     """Full-table search for users (page-number pagination)."""
     tap_stream_id = "users"
-    key_properties = ("id",)
+    key_properties = ["id"]
     replication_method = "FULL_TABLE"
 
     http_method = "POST"

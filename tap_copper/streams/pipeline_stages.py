@@ -5,7 +5,7 @@ from tap_copper.streams.abstracts import FullTableStream
 class PipelineStages(FullTableStream):
     """Full-table search for pipeline stages (page-number pagination)."""
     tap_stream_id = "pipeline_stages"
-    key_properties = ("id",)
+    key_properties = ["id"]
     replication_method = "FULL_TABLE"
 
     http_method = "POST"

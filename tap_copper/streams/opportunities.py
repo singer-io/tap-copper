@@ -5,7 +5,7 @@ from tap_copper.streams.abstracts import ChildBaseStream
 class Opportunities(ChildBaseStream):
     """Child search for opportunities; filtered by company (page-number pagination)."""
     tap_stream_id = "opportunities"
-    key_properties = ("id",)
+    key_properties = ["id"]
     replication_method = "INCREMENTAL"
     replication_keys = ["date_modified"]
 
