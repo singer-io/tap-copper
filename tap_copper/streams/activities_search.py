@@ -4,7 +4,7 @@ from tap_copper.streams.abstracts import IncrementalStream
 class ActivitiesSearch(IncrementalStream):
     """Incremental search over activities (page-number pagination)."""
     tap_stream_id = "activities_search"
-    key_properties = ("id",)
+    key_properties = ["id"]
     replication_method = "INCREMENTAL"
     replication_keys = ["date_modified"]
 
