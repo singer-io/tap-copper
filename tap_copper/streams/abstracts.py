@@ -1,3 +1,5 @@
+"""Base stream abstractions for tap-copper"""
+
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Tuple, List, Iterator  # noqa: F401
 from singer import (
@@ -29,7 +31,7 @@ class BaseStream(ABC):
     url_endpoint = ""
     path = ""
     page_size = 0
-    next_page_key = ""
+    next_page_key = "page_number"
     headers = {
         "X-PW-AccessToken": "{{ api_key }}",
         "X-PW-Application": "developer_api",
@@ -42,7 +44,6 @@ class BaseStream(ABC):
     data_key = ""
     parent_bookmark_key = ""
     http_method = "POST"
-    # Pagination field names (default values)
     page_number_field = "page_number"
     page_size_field = "page_size"
 
@@ -59,7 +60,6 @@ class BaseStream(ABC):
     @abstractmethod
     def tap_stream_id(self) -> str:
         """Unique identifier for the stream.
-
         This is allowed to be different from the name of the stream, in
         order to allow for sources that have duplicate stream names.
         """
@@ -96,10 +96,8 @@ class BaseStream(ABC):
          - state (dict): represents the state file for the tap.
          - transformer (object): A Object of the singer.transformer class.
          - parent_obj (dict): The parent object for the stream.
-
         Returns:
          - bool: The return value. True for success, False otherwise.
-
         Docs:
          - https://github.com/singer-io/getting-started/blob/master/docs/SYNC_MODE.md
         """
@@ -118,11 +116,17 @@ class BaseStream(ABC):
                 body=self.data_payload,
                 path=self.path,
             )
-            raw_records = response.get(self.data_key, [])
-            next_page = response.get(self.next_page_key)
 
-            self.params[self.next_page_key] = next_page
+            if isinstance(response, list):
+                raw_records = response
+                next_page = None
+            elif isinstance(response, dict):
+                raw_records = response.get(self.data_key, {}) if self.data_key else response
+                next_page = response.get(self.next_page_key)
+            else:
+                raise TypeError("Unexpected response type. Expected dict or list.")
             yield from raw_records
+            self.params[self.next_page_key] = next_page
 
     def write_schema(self) -> None:
         """
@@ -181,7 +185,7 @@ class IncrementalStream(BaseStream):
         key: Any = None,
         value: Any = None,
     ) -> Dict:
-        
+
         """A wrapper for singer.get_bookmark to deal with compatibility for
         bookmark values or start values."""
         if not (key or self.replication_keys):
