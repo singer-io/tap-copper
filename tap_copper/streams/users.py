@@ -17,10 +17,3 @@ class Users(FullTableStream):
 
     def get_url_endpoint(self, parent_obj: Optional[Dict[str, Any]] = None) -> str:
         return f"{self.client.base_url}/{self.path}"
-
-    def update_data_payload(self, parent_obj: Optional[Dict[str, Any]] = None, **kwargs) -> None:
-        base: Dict[str, Any] = {
-            self.page_number_field: 1,
-            self.page_size_field: self.page_size,
-        }
-        super().update_data_payload(parent_obj=parent_obj, **{**base, **kwargs})

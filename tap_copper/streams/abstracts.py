@@ -1,3 +1,5 @@
+"""Base stream abstractions for tap-copper"""
+
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Tuple, List, Iterator  # noqa: F401
 from singer import (
@@ -29,7 +31,7 @@ class BaseStream(ABC):
     url_endpoint = ""
     path = ""
     page_size = 0
-    next_page_key = ""
+    next_page_key = "page_number"
     headers = {
         "X-PW-AccessToken": "{{ api_key }}",
         "X-PW-Application": "developer_api",
@@ -118,11 +120,18 @@ class BaseStream(ABC):
                 body=self.data_payload,
                 path=self.path,
             )
-            raw_records = response.get(self.data_key, [])
-            next_page = response.get(self.next_page_key)
-
-            self.params[self.next_page_key] = next_page
+            #raw_records = response.get(self.data_key, [])
+            #next_page = response.get(self.next_page_key)
+            if isinstance(response, list):
+                raw_records = response
+                next_page = None
+            elif isinstance(response, dict):
+                raw_records = response.get(self.data_key, {}) if self.data_key else response
+                next_page = response.get(self.next_page_key)
+            else:
+                raise TypeError("Unexpected response type. Expected dict or list.")
             yield from raw_records
+            self.params[self.next_page_key] = next_page
 
     def write_schema(self) -> None:
         """
