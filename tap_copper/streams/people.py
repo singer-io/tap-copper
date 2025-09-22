@@ -8,8 +8,6 @@ class People(ChildBaseStream):
     key_properties = ["id"]
     replication_method = "INCREMENTAL"
     replication_keys = ["date_modified"]
-
-    # declare parent so sync can attach children to the Companies stream
     parent = "companies"
 
     http_method = "POST"
