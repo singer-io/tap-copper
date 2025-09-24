@@ -4,6 +4,7 @@
     "id": {
       "type": [
         "null",
+        "integer",
         "string"
       ]
     },
@@ -37,7 +38,8 @@
             "boolean"
           ]
         }
-      }
+      },
+      "additionalProperties": true
     }
   }
 }

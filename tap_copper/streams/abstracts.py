@@ -60,8 +60,6 @@ class BaseStream(ABC):
     @abstractmethod
     def tap_stream_id(self) -> str:
         """Unique identifier for the stream.
-        This is allowed to be different from the name of the stream, in
-        order to allow for sources that have duplicate stream names.
         """
 
     @property
@@ -91,15 +89,6 @@ class BaseStream(ABC):
     ) -> Dict:
         """
         Performs a replication sync for the stream.
-        ~~~
-        Args:
-         - state (dict): represents the state file for the tap.
-         - transformer (object): A Object of the singer.transformer class.
-         - parent_obj (dict): The parent object for the stream.
-        Returns:
-         - bool: The return value. True for success, False otherwise.
-        Docs:
-         - https://github.com/singer-io/getting-started/blob/master/docs/SYNC_MODE.md
         """
 
     def get_records(self) -> Iterator:
@@ -125,8 +114,17 @@ class BaseStream(ABC):
                 next_page = response.get(self.next_page_key)
             else:
                 raise TypeError("Unexpected response type. Expected dict or list.")
-            yield from raw_records
-            self.params[self.next_page_key] = next_page
+
+            # when raw_records is a dict, yield the dict itself (not its keys)
+            if isinstance(raw_records, dict):
+                yield raw_records
+            elif isinstance(raw_records, list):
+                for item in raw_records:
+                    if isinstance(item, dict):
+                        yield item
+
+            if next_page:
+                self.params[self.next_page_key] = next_page
 
     def write_schema(self) -> None:
         """
@@ -148,9 +146,15 @@ class BaseStream(ABC):
 
     def update_data_payload(self, **kwargs) -> None:
         """
-        Update JSON body for the stream
+        Update JSON body for the stream.
+        IMPORTANT: Never send parent_obj in body (Copper returns 422 on unknown attrs).
         """
-        self.data_payload.update(kwargs)
+        if "parent_obj" in kwargs:
+            kwargs.pop("parent_obj", None)
+        # Remove None values to avoid sending junk
+        clean = {k: v for k, v in kwargs.items() if v is not None}
+        if clean:
+            self.data_payload.update(clean)
 
     def modify_object(self, record: Dict, parent_record: Dict = None) -> Dict:
         """
@@ -168,7 +172,7 @@ class BaseStream(ABC):
 class IncrementalStream(BaseStream):
     """Base Class for Incremental Stream."""
 
-    def get_bookmark(self, state: dict, stream: str, key: Any = None) -> int:
+    def get_bookmark(self, state: dict, stream: str, key: Any = None) -> Any:
         """A wrapper for singer.get_bookmark to deal with compatibility for
         bookmark values or start values."""
         return get_bookmark(
@@ -197,7 +201,14 @@ class IncrementalStream(BaseStream):
             key or self.replication_keys[0],
             self.client.config["start_date"],
         )
-        value = max(current_bookmark, value)
+
+        # avoid TypeError if types differ
+        try:
+            value = max(current_bookmark, value)
+        except TypeError:
+            # If incomparable (e.g., str vs int), prefer the new value to keep moving forward
+            value = value if value is not None else current_bookmark
+
         return write_bookmark(
             state, 
             stream, 
@@ -217,26 +228,49 @@ class IncrementalStream(BaseStream):
             stream=self.tap_stream_id
         )
         current_max_bookmark_date = bookmark_date
-        self.update_params(updated_since=bookmark_date)
-        self.update_data_payload(parent_obj=parent_obj)
+
+        # DO NOT add updated_since automatically (Copper search endpoints 422 on this)
+        # self.update_params(updated_since=bookmark_date)
+
+        # DO NOT put parent_obj into POST bodies (causes 422)
+        # self.update_data_payload(parent_obj=parent_obj)
+        self.update_data_payload()  # no-op; keeps body clean
         self.url_endpoint = self.get_url_endpoint(parent_obj)
 
         with metrics.record_counter(self.tap_stream_id) as counter:
             for record in self.get_records():
                 record = self.modify_object(record, parent_obj)
+
+                # Ensure we only transform dict records (cheap guard)
+                if not isinstance(record, dict):
+                    LOGGER.warning("%s: skipping non-object record (%s)", self.tap_stream_id, type(record).__name__)
+                    continue
+
                 transformed_record = transformer.transform(
                     record, self.schema, self.metadata
                 )
 
                 record_bookmark = transformed_record[self.replication_keys[0]]
-                if record_bookmark >= bookmark_date:
+
+                # robust compare when types differ
+                try:
+                    cond = (record_bookmark >= bookmark_date)
+                except TypeError:
+                    # If incomparable (e.g., int vs str), emit to avoid data loss
+                    cond = True
+
+                if cond:
                     if self.is_selected():
                         write_record(self.tap_stream_id, transformed_record)
                         counter.increment()
 
-                    current_max_bookmark_date = max(
-                        current_max_bookmark_date, record_bookmark
-                    )
+                    # robust max when types differ
+                    try:
+                        current_max_bookmark_date = max(
+                            current_max_bookmark_date, record_bookmark
+                        )
+                    except TypeError:
+                        current_max_bookmark_date = record_bookmark
 
                     for child in self.child_to_sync:
                         child.sync(
@@ -266,9 +300,16 @@ class FullTableStream(BaseStream):
     ) -> Dict:
         """Abstract implementation for `type: Fulltable` stream."""
         self.url_endpoint = self.get_url_endpoint(parent_obj)
-        self.update_data_payload(parent_obj=parent_obj)
+        # Never send parent_obj in body
+        self.update_data_payload()
+
         with metrics.record_counter(self.tap_stream_id) as counter:
             for record in self.get_records():
+                #  only transform dict records
+                if not isinstance(record, dict):
+                    LOGGER.warning("%s: skipping non-object record (%s)", self.tap_stream_id, type(record).__name__)
+                    continue
+
                 transformed_record = transformer.transform(
                     record, self.schema, self.metadata
                 )
@@ -289,7 +330,7 @@ class FullTableStream(BaseStream):
 class ParentBaseStream(IncrementalStream):
     """Base Class for Parent Stream."""
 
-    def get_bookmark(self, state: Dict, stream: str, key: Any = None) -> int:
+    def get_bookmark(self, state: Dict, stream: str, key: Any = None) -> Any:
         """A wrapper for singer.get_bookmark to deal with compatibility for
         bookmark values or start values."""
 
@@ -352,7 +393,7 @@ class ChildBaseStream(IncrementalStream):
         """Prepare URL endpoint for child streams."""
         return f"{self.client.base_url}/{self.path.format(parent_obj['id'])}"
 
-    def get_bookmark(self, state: Dict, stream: str, key: Any = None) -> int:
+    def get_bookmark(self, state: Dict, stream: str, key: Any = None) -> Any:
         """Singleton bookmark value for child streams."""
         if not self.bookmark_value:
             self.bookmark_value = super().get_bookmark(
