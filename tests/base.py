@@ -43,14 +43,14 @@ class copperBaseTest(BaseCase):
             "activities_search": {
                 cls.PRIMARY_KEYS: { "id" },
                 cls.REPLICATION_METHOD: cls.INCREMENTAL,
-                cls.REPLICATION_KEYS: set(),
+                cls.REPLICATION_KEYS: {"date_modified"},
                 cls.OBEYS_START_DATE: False,
                 cls.API_LIMIT: 100
             },
             "companies": {
                 cls.PRIMARY_KEYS: { "id" },
                 cls.REPLICATION_METHOD: cls.INCREMENTAL,
-                cls.REPLICATION_KEYS: set(),
+                cls.REPLICATION_KEYS: {"date_modified"},
                 cls.OBEYS_START_DATE: False,
                 cls.API_LIMIT: 100
             },
@@ -85,7 +85,7 @@ class copperBaseTest(BaseCase):
             "leads": {
                 cls.PRIMARY_KEYS: { "id" },
                 cls.REPLICATION_METHOD: cls.INCREMENTAL,
-                cls.REPLICATION_KEYS: set(),
+                cls.REPLICATION_KEYS: {"date_modified"},
                 cls.OBEYS_START_DATE: False,
                 cls.API_LIMIT: 100
             },
@@ -99,14 +99,14 @@ class copperBaseTest(BaseCase):
             "opportunities": {
                 cls.PRIMARY_KEYS: { "id" },
                 cls.REPLICATION_METHOD: cls.INCREMENTAL,
-                cls.REPLICATION_KEYS: set(),
+                cls.REPLICATION_KEYS: {"date_modified"},
                 cls.OBEYS_START_DATE: False,
                 cls.API_LIMIT: 100
             },
             "people": {
                 cls.PRIMARY_KEYS: { "id" },
                 cls.REPLICATION_METHOD: cls.INCREMENTAL,
-                cls.REPLICATION_KEYS: set(),
+                cls.REPLICATION_KEYS: {"date_modified"},
                 cls.OBEYS_START_DATE: False,
                 cls.API_LIMIT: 100
             },
@@ -127,7 +127,7 @@ class copperBaseTest(BaseCase):
             "projects": {
                 cls.PRIMARY_KEYS: { "id" },
                 cls.REPLICATION_METHOD: cls.INCREMENTAL,
-                cls.REPLICATION_KEYS: set(),
+                cls.REPLICATION_KEYS: {"date_modified"},
                 cls.OBEYS_START_DATE: False,
                 cls.API_LIMIT: 100
             },
@@ -141,7 +141,7 @@ class copperBaseTest(BaseCase):
             "tasks": {
                 cls.PRIMARY_KEYS: { "id" },
                 cls.REPLICATION_METHOD: cls.INCREMENTAL,
-                cls.REPLICATION_KEYS: set(),
+                cls.REPLICATION_KEYS: {"date_modified"},
                 cls.OBEYS_START_DATE: False,
                 cls.API_LIMIT: 100
             },
