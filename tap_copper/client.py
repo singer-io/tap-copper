@@ -58,7 +58,7 @@ class Client:
     def __init__(self, config: Mapping[str, Any]) -> None:
         self.config = config
         self._session = session()
-        self.base_url = "https://api.copper.com/developer_api/v1/"
+        self.base_url = "https://api.copper.com/developer_api/v1"
         config_request_timeout = config.get("request_timeout", REQUEST_TIMEOUT)
         if config_request_timeout and float(config_request_timeout) > 0:
             self.request_timeout = float(config_request_timeout)
