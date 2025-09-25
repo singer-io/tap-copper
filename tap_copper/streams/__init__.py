@@ -9,6 +9,7 @@ from tap_copper.streams.leads import Leads
 from tap_copper.streams.loss_reasons import LossReasons
 from tap_copper.streams.opportunities import Opportunities
 from tap_copper.streams.people import People
+from tap_copper.streams.pipeline_stages import PipelineStages
 from tap_copper.streams.pipelines import Pipelines
 from tap_copper.streams.projects import Projects
 from tap_copper.streams.tags import Tags
@@ -27,6 +28,7 @@ STREAMS = {
     "loss_reasons": LossReasons,
     "opportunities": Opportunities,
     "people": People,
+    "pipeline_stages": PipelineStages,
     "pipelines": Pipelines,
     "projects": Projects,
     "tags": Tags,
