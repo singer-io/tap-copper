@@ -186,7 +186,11 @@ Primary keys: ['id']
 
 Replication strategy: FULL_TABLE
 
+### Note on `pipeline_stages`
 
+The `pipeline_stages` stream appears in discovery but is marked as **unsupported** (`inclusion=unsupported`, `selected-by-default=false`).  
+It will not sync by default. If manually selected, the Copper API returns a `401 Unauthorized` error.  
+This behavior is intentional and consistent with other official taps (e.g., tap-workday).
 
 ## Authentication
 
