@@ -1,48 +1,61 @@
-"""
-Main entry point for the tap-copper Singer tap.
-
-Handles discovery (--discover) and sync (with a provided catalog).
-"""
-
 import json
 import sys
-from typing import Any, Dict
+import argparse
 
 import singer
+from singer.catalog import Catalog
+
+from tap_copper.discover import discover as discover_with_config
 from tap_copper.client import Client
-from tap_copper.discover import discover
 from tap_copper.sync import sync
 
 LOGGER = singer.get_logger()
 
-REQUIRED_CONFIG_KEYS = ["api_key", "user_email"]
+
+def _load_json_file(path: str):
+    with open(path, "r", encoding="utf-8") as fh:
+        return json.load(fh)
 
 
-def do_discover() -> None:
-    """Emit the catalog JSON to stdout."""
-    LOGGER.info("Starting discover")
-    catalog = discover()
-    json.dump(catalog.to_dict(), sys.stdout, indent=2)
-    LOGGER.info("Finished discover")
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(prog="tap-copper")
+    parser.add_argument("--config", help="Config file", required=False)
+    parser.add_argument("--discover", action="store_true", help="Run discovery")
+    parser.add_argument("--catalog", help="Catalog file", required=False)
+    parser.add_argument("--state", help="State file", required=False)
+    return parser.parse_args(argv)
 
 
-@singer.utils.handle_top_exception(LOGGER)
-def main() -> None:
-    """Parse command-line arguments and run discovery or sync mode."""
-    parsed_args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
-    state: Dict[str, Any] = parsed_args.state or {}
+def main(argv=None):
+    args = parse_args(argv)
 
-    with Client(parsed_args.config) as client:
-        if parsed_args.discover:
-            do_discover()
-        elif parsed_args.catalog:
-            sync(
-                client=client,
-                config=parsed_args.config,
-                catalog=parsed_args.catalog,
-                state=state,
-            )
+    config = {}
+    if args.config:
+        config = _load_json_file(args.config)
+
+    if args.discover:
+        LOGGER.info("DISCOVERY STARTED")
+        catalog = discover_with_config(config=config)
+        catalog.dump()
+        LOGGER.info("DISCOVERY FINISHED")
+        return 0
+
+    if not args.catalog:
+        LOGGER.error("Catalog is required for sync. Use --catalog <file>.")
+        return 1
+
+    with open(args.catalog, "r", encoding="utf-8") as fh:
+        catalog = Catalog.from_dict(json.load(fh))
+
+    state = {}
+    if args.state:
+        state = _load_json_file(args.state)
+
+    client = Client(config)
+    sync(client=client, config=config, catalog=catalog, state=state)
+
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

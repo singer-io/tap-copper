@@ -7,6 +7,7 @@ import singer
 from singer.transform import UNIX_MILLISECONDS_INTEGER_DATETIME_PARSING
 from tap_copper.streams import STREAMS
 from tap_copper.client import Client
+from tap_copper.exceptions import CopperUnauthorizedError  # <-- NEW
 
 LOGGER = singer.get_logger()
 
@@ -50,7 +51,6 @@ def sync(client: Client, config: Dict, catalog: singer.Catalog, state) -> None:
 
     with singer.Transformer(integer_datetime_fmt=UNIX_MILLISECONDS_INTEGER_DATETIME_PARSING) as transformer:
         for stream_name in streams_to_sync[:]:
-
             stream = STREAMS[stream_name](client, catalog.get_stream(stream_name))
             if stream.parent:
                 if stream.parent not in streams_to_sync:
@@ -58,13 +58,15 @@ def sync(client: Client, config: Dict, catalog: singer.Catalog, state) -> None:
                 continue
 
             write_schema(stream, client, streams_to_sync, catalog)
-            LOGGER.info("START Syncing: {}".format(stream_name))
+            LOGGER.info("START Syncing: %s", stream_name)
             update_currently_syncing(state, stream_name)
-            total_records = stream.sync(state=state, transformer=transformer)
+
+            try:
+                total_records = stream.sync(state=state, transformer=transformer)
+            except CopperUnauthorizedError as e:
+                LOGGER.warning(str(e))
+                update_currently_syncing(state, None)
+                continue
 
             update_currently_syncing(state, None)
-            LOGGER.info(
-                "FINISHED Syncing: {}, total_records: {}".format(
-                    stream_name, total_records
-                )
-            )
+            LOGGER.info("FINISHED Syncing: %s, total_records: %s", stream_name, total_records)

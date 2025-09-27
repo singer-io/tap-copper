@@ -2,6 +2,8 @@
 
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Tuple, List, Iterator  # noqa: F401
+from datetime import datetime, timezone
+
 from singer import (
     Transformer,
     get_bookmark,
@@ -13,21 +15,56 @@ from singer import (
     metadata,
 )
 
+# Generic HTTP→domain exceptions
+from tap_copper.exceptions import (
+    CopperError,
+    CopperNotFoundError,       # 404
+    CopperUnauthorizedError,   # 401
+    CopperForbiddenError,      # 403 (if defined in your mapping)
+)
+
 LOGGER = get_logger()
 DEFAULT_PAGE_SIZE = 100
 
 
-class BaseStream(ABC):
-    """
-    A Base Class providing structure and boilerplate for generic streams
-    and required attributes for any kind of stream
-    ~~~
-    Provides:
-     - Basic Attributes (stream_name,replication_method,key_properties)
-     - Helper methods for catalog generation
-     - `sync` and `get_records` method for performing sync
-    """
+# -----------------------------
+# Helpers: time normalization
+# -----------------------------
+def _to_epoch_seconds(value: Any) -> float:
+    if value is None:
+        raise ValueError("No timestamp value")
+    if isinstance(value, (int, float)):
+        ts = float(value)
+        if ts > 1e12:
+            ts /= 1000.0
+        return ts
+    if isinstance(value, str):
+        s = value.strip()
+        if s.endswith("Z"):
+            s = s[:-1] + "+00:00"
+        try:
+            dt = datetime.fromisoformat(s)
+        except Exception as exc:
+            raise ValueError(f"Unparseable datetime string: {value}") from exc
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt = dt.astimezone(timezone.utc)
+        return dt.timestamp()
+    raise ValueError(f"Unsupported timestamp type: {type(value)}")
 
+
+def _to_iso8601_z(value: Any) -> str:
+    try:
+        ts = _to_epoch_seconds(value)
+    except ValueError:
+        if isinstance(value, str):
+            return value
+        raise
+    return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+class BaseStream(ABC):
     url_endpoint = ""
     path = ""
     page_size = 0
@@ -59,8 +96,7 @@ class BaseStream(ABC):
     @property
     @abstractmethod
     def tap_stream_id(self) -> str:
-        """Unique identifier for the stream.
-        """
+        """Unique identifier for the stream."""
 
     @property
     @abstractmethod
@@ -87,24 +123,45 @@ class BaseStream(ABC):
         transformer: Transformer,
         parent_obj: Dict = None,
     ) -> Dict:
-        """
-        Performs a replication sync for the stream.
-        """
+        """Performs a replication sync for the stream."""
 
     def get_records(self) -> Iterator:
         """Interacts with api client interaction and pagination."""
         self.params["page_size"] = self.client.config.get("page_size", DEFAULT_PAGE_SIZE)
 
         next_page = 1
+        has_yielded = False  # track if we've emitted anything yet
+
         while next_page:
-            response = self.client.make_request(
-                self.http_method,
-                self.get_url_endpoint(),
-                self.params,
-                self.headers,
-                body=self.data_payload,
-                path=self.path,
-            )
+            try:
+                response = self.client.make_request(
+                    self.http_method,
+                    self.get_url_endpoint(),
+                    self.params,
+                    self.headers,
+                    body=self.data_payload,
+                    path=self.path,
+                )
+
+            # ---- Generic auth surfacing (NO hardcoding) ----
+            except (CopperUnauthorizedError, CopperForbiddenError) as e:
+                # Attach stream + endpoint context; keep original exception type
+                status = getattr(getattr(e, "response", None), "status_code", None)
+                msg = (
+                    f"{self.tap_stream_id}: unauthorized to access '{self.path}' "
+                    f"(HTTP {status or '401/403'}). Check plan/permissions/scopes."
+                )
+                raise type(e)(msg, getattr(e, "response", None)) from e
+
+            # ---- Optional: endpoint not available but vendor returns 404 ----
+            except CopperNotFoundError as e:
+                if not has_yielded and (next_page == 1):
+                    raise CopperUnauthorizedError(
+                        f"{self.tap_stream_id}: endpoint '{self.path}' is not accessible for this account "
+                        f"(received 404). This typically means the feature/endpoint isn't enabled "
+                        f"or you lack permission."
+                    ) from e
+                raise
 
             if isinstance(response, list):
                 raw_records = response
@@ -115,31 +172,26 @@ class BaseStream(ABC):
             else:
                 raise TypeError("Unexpected response type. Expected dict or list.")
 
-            # when raw_records is a dict, yield the dict itself (not its keys)
             if isinstance(raw_records, dict):
+                has_yielded = True
                 yield raw_records
             elif isinstance(raw_records, list):
                 for item in raw_records:
                     if isinstance(item, dict):
+                        has_yielded = True
                         yield item
 
             if next_page:
                 self.params[self.next_page_key] = next_page
 
     def write_schema(self) -> None:
-        """
-        Write a schema message.
-        """
         try:
             write_schema(self.tap_stream_id, self.schema, self.key_properties)
         except OSError as err:
-            LOGGER.error(
-                "OS Error while writing schema for: {}".format(self.tap_stream_id)
-            )
-            raise err
+            LOGGER.error("OS Error while writing schema for: %s", self.tap_stream_id)
+            raise
 
     def update_params(self, **kwargs) -> None:
-        """Update params for the stream; include page_size if configured."""
         if isinstance(self.page_size, int) and self.page_size > 0:
             self.params.setdefault("page_size", self.page_size)
         self.params.update(kwargs)
@@ -151,21 +203,14 @@ class BaseStream(ABC):
         """
         if "parent_obj" in kwargs:
             kwargs.pop("parent_obj", None)
-        # Remove None values to avoid sending junk
         clean = {k: v for k, v in kwargs.items() if v is not None}
         if clean:
             self.data_payload.update(clean)
 
     def modify_object(self, record: Dict, parent_record: Dict = None) -> Dict:
-        """
-        Modify the record before writing to the stream
-        """
         return record
 
     def get_url_endpoint(self, parent_obj: Dict = None) -> str:
-        """
-        Get the URL endpoint for the stream
-        """
         return self.url_endpoint or f"{self.client.base_url}/{self.path}"
 
 
@@ -173,8 +218,6 @@ class IncrementalStream(BaseStream):
     """Base Class for Incremental Stream."""
 
     def get_bookmark(self, state: dict, stream: str, key: Any = None) -> Any:
-        """A wrapper for singer.get_bookmark to deal with compatibility for
-        bookmark values or start values."""
         return get_bookmark(
             state,
             stream,
@@ -189,9 +232,6 @@ class IncrementalStream(BaseStream):
         key: Any = None,
         value: Any = None,
     ) -> Dict:
-
-        """A wrapper for singer.get_bookmark to deal with compatibility for
-        bookmark values or start values."""
         if not (key or self.replication_keys):
             return state
 
@@ -202,18 +242,18 @@ class IncrementalStream(BaseStream):
             self.client.config["start_date"],
         )
 
-        # avoid TypeError if types differ
         try:
             value = max(current_bookmark, value)
         except TypeError:
-            # If incomparable (e.g., str vs int), prefer the new value to keep moving forward
             value = value if value is not None else current_bookmark
 
+        iso_value = _to_iso8601_z(value)
+
         return write_bookmark(
-            state, 
-            stream, 
-            key or self.replication_keys[0], 
-            value
+            state,
+            stream,
+            key or self.replication_keys[0],
+            iso_value
         )
 
     def sync(
@@ -222,55 +262,53 @@ class IncrementalStream(BaseStream):
         transformer: Transformer,
         parent_obj: Dict = None,
     ) -> Dict:
-        """Implementation for `type: Incremental` stream."""
-        bookmark_date = self.get_bookmark(
+        raw_bookmark = self.get_bookmark(
             state=state,
             stream=self.tap_stream_id
         )
-        current_max_bookmark_date = bookmark_date
 
-        # DO NOT add updated_since automatically (Copper search endpoints 422 on this)
-        # self.update_params(updated_since=bookmark_date)
+        try:
+            bookmark_sec = _to_epoch_seconds(raw_bookmark)
+        except ValueError:
+            bookmark_sec = float("-inf")
 
-        # DO NOT put parent_obj into POST bodies (causes 422)
-        # self.update_data_payload(parent_obj=parent_obj)
-        self.update_data_payload()  # no-op; keeps body clean
+        current_max_sec = bookmark_sec
+
+        self.update_data_payload()  # keep body clean
         self.url_endpoint = self.get_url_endpoint(parent_obj)
 
         with metrics.record_counter(self.tap_stream_id) as counter:
             for record in self.get_records():
                 record = self.modify_object(record, parent_obj)
 
-                # Ensure we only transform dict records (cheap guard)
                 if not isinstance(record, dict):
-                    LOGGER.warning("%s: skipping non-object record (%s)", self.tap_stream_id, type(record).__name__)
+                    LOGGER.warning(
+                        "%s: skipping non-object record (%s)",
+                        self.tap_stream_id,
+                        type(record).__name__,
+                    )
                     continue
 
                 transformed_record = transformer.transform(
                     record, self.schema, self.metadata
                 )
 
-                record_bookmark = transformed_record[self.replication_keys[0]]
+                record_bookmark = transformed_record.get(self.replication_keys[0])
+                if record_bookmark is None:
+                    continue
 
-                # robust compare when types differ
                 try:
-                    cond = (record_bookmark >= bookmark_date)
-                except TypeError:
-                    # If incomparable (e.g., int vs str), emit to avoid data loss
-                    cond = True
+                    rec_sec = _to_epoch_seconds(record_bookmark)
+                except ValueError:
+                    rec_sec = float("inf")
 
-                if cond:
+                if rec_sec >= bookmark_sec:
                     if self.is_selected():
                         write_record(self.tap_stream_id, transformed_record)
                         counter.increment()
 
-                    # robust max when types differ
-                    try:
-                        current_max_bookmark_date = max(
-                            current_max_bookmark_date, record_bookmark
-                        )
-                    except TypeError:
-                        current_max_bookmark_date = record_bookmark
+                    if rec_sec > current_max_sec:
+                        current_max_sec = rec_sec
 
                     for child in self.child_to_sync:
                         child.sync(
@@ -282,7 +320,7 @@ class IncrementalStream(BaseStream):
             state = self.write_bookmark(
                 state=state,
                 stream=self.tap_stream_id,
-                value=current_max_bookmark_date,
+                value=current_max_sec,
             )
             return counter.value
 
@@ -298,16 +336,17 @@ class FullTableStream(BaseStream):
         transformer: Transformer,
         parent_obj: Dict = None,
     ) -> Dict:
-        """Abstract implementation for `type: Fulltable` stream."""
         self.url_endpoint = self.get_url_endpoint(parent_obj)
-        # Never send parent_obj in body
         self.update_data_payload()
 
         with metrics.record_counter(self.tap_stream_id) as counter:
             for record in self.get_records():
-                #  only transform dict records
                 if not isinstance(record, dict):
-                    LOGGER.warning("%s: skipping non-object record (%s)", self.tap_stream_id, type(record).__name__)
+                    LOGGER.warning(
+                        "%s: skipping non-object record (%s)",
+                        self.tap_stream_id,
+                        type(record).__name__,
+                    )
                     continue
 
                 transformed_record = transformer.transform(
@@ -331,9 +370,6 @@ class ParentBaseStream(IncrementalStream):
     """Base Class for Parent Stream."""
 
     def get_bookmark(self, state: Dict, stream: str, key: Any = None) -> Any:
-        """A wrapper for singer.get_bookmark to deal with compatibility for
-        bookmark values or start values."""
-
         min_parent_bookmark = (
             super().get_bookmark(state=state, stream=stream)
             if self.is_selected()
@@ -351,7 +387,6 @@ class ParentBaseStream(IncrementalStream):
                 if min_parent_bookmark
                 else child_bookmark
             )
-
         return min_parent_bookmark
 
     def write_bookmark(
@@ -361,15 +396,13 @@ class ParentBaseStream(IncrementalStream):
         key: Any = None,
         value: Any = None,
     ) -> Dict:
-        """Write bookmark for parent and propagate to children."""
         if self.is_selected():
             super().write_bookmark(
                 state=state,
-                stream=stream, 
-                key=key, 
-                value=value
+                stream=stream,
+                key=key,
+                value=value,
             )
-
         for child in self.child_to_sync:
             bookmark_key = f"{self.tap_stream_id}_{self.replication_keys[0]}"
             super().write_bookmark(
@@ -378,7 +411,6 @@ class ParentBaseStream(IncrementalStream):
                 key=bookmark_key,
                 value=value,
             )
-
         return state
 
 
@@ -390,15 +422,13 @@ class ChildBaseStream(IncrementalStream):
         self.bookmark_value = None
 
     def get_url_endpoint(self, parent_obj=None):
-        """Prepare URL endpoint for child streams."""
         return f"{self.client.base_url}/{self.path.format(parent_obj['id'])}"
 
     def get_bookmark(self, state: Dict, stream: str, key: Any = None) -> Any:
-        """Singleton bookmark value for child streams."""
         if not self.bookmark_value:
             self.bookmark_value = super().get_bookmark(
-                state=state, 
-                stream=stream, 
+                state=state,
+                stream=stream,
                 key=key
             )
         return self.bookmark_value
