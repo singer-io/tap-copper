@@ -1,8 +1,7 @@
-"""Base stream abstractions for tap-copper"""
-
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Tuple, List, Iterator  # noqa: F401
+from typing import Any, Dict, Tuple, List, Iterator
 from datetime import datetime, timezone
+from copy import deepcopy
 
 from singer import (
     Transformer,
@@ -12,6 +11,7 @@ from singer import (
     write_bookmark,
     write_record,
     write_schema,
+    write_state,
     metadata,
 )
 
@@ -33,11 +33,15 @@ DEFAULT_PAGE_SIZE = 100
 def _to_epoch_seconds(value: Any) -> float:
     if value is None:
         raise ValueError("No timestamp value")
+
     if isinstance(value, (int, float)):
         ts = float(value)
-        if ts > 1e12:
-            ts /= 1000.0
+        if ts > 1e15:
+            ts /= 1e6
+        elif ts > 1e12:
+            ts /= 1e3
         return ts
+
     if isinstance(value, str):
         s = value.strip()
         if s.endswith("Z"):
@@ -51,16 +55,13 @@ def _to_epoch_seconds(value: Any) -> float:
         else:
             dt = dt.astimezone(timezone.utc)
         return dt.timestamp()
+
     raise ValueError(f"Unsupported timestamp type: {type(value)}")
 
 
 def _to_iso8601_z(value: Any) -> str:
-    try:
-        ts = _to_epoch_seconds(value)
-    except ValueError:
-        if isinstance(value, str):
-            return value
-        raise
+    """Return an ISO-8601 UTC string ('...Z') for a timestamp-like value."""
+    ts = _to_epoch_seconds(value)
     return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
@@ -89,9 +90,124 @@ class BaseStream(ABC):
         self.catalog = catalog
         self.schema = catalog.schema.to_dict()
         self.metadata = metadata.to_map(catalog.metadata)
-        self.child_to_sync = []
-        self.params = {}
-        self.data_payload = {}
+        self.child_to_sync: List = []
+        self.params: Dict[str, Any] = {}
+        self.data_payload: Dict[str, Any] = {}
+        self._date_fields = self._infer_date_fields()
+        self._patch_schema_date_fields()
+
+    # -----------------------------
+    # Schema/record/date utilities
+    # -----------------------------
+    def _infer_date_fields(self) -> set:
+        """
+        Detect date/datetime fields from the JSON Schema and common naming patterns.
+        """
+        props = (self.schema or {}).get("properties", {}) or {}
+        date_fields: set = set()
+        for key, spec in props.items():
+            if not isinstance(spec, dict):
+                continue
+            fmt = spec.get("format")
+            if fmt in {"date-time", "date"}:
+                date_fields.add(key)
+            if key.endswith("_date") or key.startswith("date_"):
+                date_fields.add(key)
+        date_fields |= {"date_created", "date_modified", "activity_date"}
+        return date_fields
+
+    def _patch_schema_date_fields(self) -> None:
+        if not isinstance(self.schema, dict):
+            return
+        props = self.schema.get("properties")
+        if not isinstance(props, dict):
+            return
+
+        new_props = deepcopy(props)
+        changed = False
+
+        for key in list(new_props.keys()):
+            if key not in self._date_fields:
+                continue
+            spec = new_props.get(key) or {}
+            if not isinstance(spec, dict):
+                continue
+
+            typ = spec.get("type")
+            type_set = set(typ) if isinstance(typ, list) else ({typ} if typ else set())
+
+            # Convert numeric date fields to strings with format=date-time
+            if type_set & {"number", "integer"}:
+                new_props[key] = {
+                    "type": ["null", "string"],
+                    "format": "date-time",
+                }
+                changed = True
+            else:
+                # Ensure string-based fields carry format=date-time
+                if isinstance(typ, list) and "string" in typ:
+                    if spec.get("format") != "date-time":
+                        spec = dict(spec)
+                        spec["format"] = "date-time"
+                        new_props[key] = spec
+                        changed = True
+                elif typ == "string" and spec.get("format") != "date-time":
+                    spec = dict(spec)
+                    spec["format"] = "date-time"
+                    new_props[key] = spec
+                    changed = True
+
+        if changed:
+            self.schema = dict(self.schema)
+            self.schema["properties"] = new_props
+
+    def _normalize_record_dates(self, record: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Normalize any recognized date fields on a record to ISO8601Z strings.
+        """
+        if not isinstance(record, dict):
+            return record
+        for k in list(record.keys()):
+            if k in self._date_fields and record[k] is not None:
+                try:
+                    record[k] = _to_iso8601_z(record[k])
+                except Exception:
+                    # Leave as-is if unparseable
+                    pass
+        return record
+
+    def _normalize_state_bookmarks(self, state: Dict) -> Dict:
+        if not isinstance(state, dict):
+            return state
+        changed = False
+        bookmarks = state.get("bookmarks")
+        if not isinstance(bookmarks, dict):
+            return state
+
+        def _is_date_key(k: str) -> bool:
+            return (
+                k in {"date_created", "date_modified", "activity_date"}
+                or k.endswith("_date")
+                or k.startswith("date_")
+            )
+
+        for _, payload in bookmarks.items():
+            if isinstance(payload, dict):
+                for k, v in list(payload.items()):
+                    if v is None:
+                        continue
+                    if _is_date_key(k):
+                        try:
+                            iso = _to_iso8601_z(v)
+                        except Exception:
+                            continue
+                        if iso != v:
+                            payload[k] = iso
+                            changed = True
+
+        if changed:
+            write_state(state)
+        return state
 
     @property
     @abstractmethod
@@ -130,7 +246,7 @@ class BaseStream(ABC):
         self.params["page_size"] = self.client.config.get("page_size", DEFAULT_PAGE_SIZE)
 
         next_page = 1
-        has_yielded = False  # track if we've emitted anything yet
+        has_yielded = False
 
         while next_page:
             try:
@@ -143,9 +259,7 @@ class BaseStream(ABC):
                     path=self.path,
                 )
 
-            # ---- Generic auth surfacing (NO hardcoding) ----
             except (CopperUnauthorizedError, CopperForbiddenError) as e:
-                # Attach stream + endpoint context; keep original exception type
                 status = getattr(getattr(e, "response", None), "status_code", None)
                 msg = (
                     f"{self.tap_stream_id}: unauthorized to access '{self.path}' "
@@ -153,7 +267,6 @@ class BaseStream(ABC):
                 )
                 raise type(e)(msg, getattr(e, "response", None)) from e
 
-            # ---- Optional: endpoint not available but vendor returns 404 ----
             except CopperNotFoundError as e:
                 if not has_yielded and (next_page == 1):
                     raise CopperUnauthorizedError(
@@ -186,8 +299,9 @@ class BaseStream(ABC):
 
     def write_schema(self) -> None:
         try:
+            # schema already patched to align date-like fields with string/ date-time
             write_schema(self.tap_stream_id, self.schema, self.key_properties)
-        except OSError as err:
+        except OSError:
             LOGGER.error("OS Error while writing schema for: %s", self.tap_stream_id)
             raise
 
@@ -208,7 +322,11 @@ class BaseStream(ABC):
             self.data_payload.update(clean)
 
     def modify_object(self, record: Dict, parent_record: Dict = None) -> Dict:
-        return record
+        """
+        Hook for per-record manipulation.
+        Default behavior: normalize date/datetime fields to ISO8601Z.
+        """
+        return self._normalize_record_dates(record)
 
     def get_url_endpoint(self, parent_obj: Dict = None) -> str:
         return self.url_endpoint or f"{self.client.base_url}/{self.path}"
@@ -262,6 +380,9 @@ class IncrementalStream(BaseStream):
         transformer: Transformer,
         parent_obj: Dict = None,
     ) -> Dict:
+        # Normalize any numeric bookmarks in incoming state
+        state = self._normalize_state_bookmarks(state)
+
         raw_bookmark = self.get_bookmark(
             state=state,
             stream=self.tap_stream_id
@@ -274,7 +395,7 @@ class IncrementalStream(BaseStream):
 
         current_max_sec = bookmark_sec
 
-        self.update_data_payload()  # keep body clean
+        self.update_data_payload()
         self.url_endpoint = self.get_url_endpoint(parent_obj)
 
         with metrics.record_counter(self.tap_stream_id) as counter:
@@ -317,6 +438,7 @@ class IncrementalStream(BaseStream):
                             parent_obj=record,
                         )
 
+            # This writes the bookmark as ISO8601Z
             state = self.write_bookmark(
                 state=state,
                 stream=self.tap_stream_id,
@@ -326,7 +448,7 @@ class IncrementalStream(BaseStream):
 
 
 class FullTableStream(BaseStream):
-    """Base Class for Incremental Stream."""
+    """Base Class for Full Table Stream."""
 
     replication_keys = []
 
@@ -336,6 +458,9 @@ class FullTableStream(BaseStream):
         transformer: Transformer,
         parent_obj: Dict = None,
     ) -> Dict:
+        # Normalize any numeric bookmarks in incoming state
+        state = self._normalize_state_bookmarks(state)
+
         self.url_endpoint = self.get_url_endpoint(parent_obj)
         self.update_data_payload()
 
@@ -348,6 +473,8 @@ class FullTableStream(BaseStream):
                         type(record).__name__,
                     )
                     continue
+
+                record = self.modify_object(record, parent_obj)
 
                 transformed_record = transformer.transform(
                     record, self.schema, self.metadata
@@ -364,7 +491,6 @@ class FullTableStream(BaseStream):
                     )
 
             return counter.value
-
 
 class ParentBaseStream(IncrementalStream):
     """Base Class for Parent Stream."""
