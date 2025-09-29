@@ -35,23 +35,12 @@ DEFAULT_PAGE_SIZE = 100
 def _to_epoch_seconds(value: Any) -> float:
     """
     Coerce supported timestamp representations into epoch seconds (UTC).
-    Supports:
-      - seconds (int/float)
-      - milliseconds (int/float > 1e12)
-      - microseconds (int/float > 1e15)
-      - ISO 8601 strings, with 'Z' or offset
     """
     if value is None:
         raise ValueError("No timestamp value")
 
     if isinstance(value, (int, float)):
-        ts = float(value)
-        # Heuristics to downscale if value looks like ms/us
-        if ts > 1e15:      # microseconds
-            ts /= 1e6
-        elif ts > 1e12:    # milliseconds
-            ts /= 1e3
-        return ts
+        return float(value)
 
     if isinstance(value, str):
         s = value.strip()

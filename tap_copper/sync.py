@@ -7,7 +7,7 @@ import singer
 from singer.transform import UNIX_MILLISECONDS_INTEGER_DATETIME_PARSING
 from tap_copper.streams import STREAMS
 from tap_copper.client import Client
-from tap_copper.exceptions import CopperUnauthorizedError  # fail-fast on unauthorized
+from tap_copper.exceptions import CopperUnauthorizedError
 
 LOGGER = singer.get_logger()
 
@@ -69,8 +69,9 @@ def sync(client: Client, config: Dict, catalog: singer.Catalog, state) -> None:
             try:
                 total_records = stream.sync(state=state, transformer=transformer)
             except CopperUnauthorizedError as e:
-                LOGGER.error("Unauthorized for stream %s: %s", stream_name, e)
-                raise
-
+                    msg = f"Unauthorized stream: {stream_name}. Check API credentials or permissions."
+                    LOGGER.error(msg)
+                    raise Exception(msg) from e
+            
             update_currently_syncing(state, None)
             LOGGER.info("FINISHED Syncing: %s, total_records: %s", stream_name, total_records)
