@@ -1,3 +1,5 @@
+"""Base stream abstractions for tap-copper (complete file with date/schema/state normalization)"""
+
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Tuple, List, Iterator
 from datetime import datetime, timezone
@@ -11,7 +13,7 @@ from singer import (
     write_bookmark,
     write_record,
     write_schema,
-    write_state,
+    write_state,   # used to emit normalized STATE
     metadata,
 )
 
@@ -31,14 +33,23 @@ DEFAULT_PAGE_SIZE = 100
 # Helpers: time normalization
 # -----------------------------
 def _to_epoch_seconds(value: Any) -> float:
+    """
+    Coerce supported timestamp representations into epoch seconds (UTC).
+    Supports:
+      - seconds (int/float)
+      - milliseconds (int/float > 1e12)
+      - microseconds (int/float > 1e15)
+      - ISO 8601 strings, with 'Z' or offset
+    """
     if value is None:
         raise ValueError("No timestamp value")
 
     if isinstance(value, (int, float)):
         ts = float(value)
-        if ts > 1e15:
+        # Heuristics to downscale if value looks like ms/us
+        if ts > 1e15:      # microseconds
             ts /= 1e6
-        elif ts > 1e12:
+        elif ts > 1e12:    # milliseconds
             ts /= 1e3
         return ts
 
@@ -93,7 +104,11 @@ class BaseStream(ABC):
         self.child_to_sync: List = []
         self.params: Dict[str, Any] = {}
         self.data_payload: Dict[str, Any] = {}
+
+        # Cache which fields look like datetimes (from schema + naming)
         self._date_fields = self._infer_date_fields()
+
+        # Ensure schema advertises date-like fields as string date-time (not numeric)
         self._patch_schema_date_fields()
 
     # -----------------------------
@@ -111,12 +126,19 @@ class BaseStream(ABC):
             fmt = spec.get("format")
             if fmt in {"date-time", "date"}:
                 date_fields.add(key)
+            # Naming heuristics
             if key.endswith("_date") or key.startswith("date_"):
                 date_fields.add(key)
+        # Common Copper fields (defensive backstop)
         date_fields |= {"date_created", "date_modified", "activity_date"}
         return date_fields
 
     def _patch_schema_date_fields(self) -> None:
+        """
+        Rewrite schema so any date-like fields are strings with format date-time.
+        Converts number/integer → ["null","string"] + format=date-time.
+        Ensures existing string types include format=date-time.
+        """
         if not isinstance(self.schema, dict):
             return
         props = self.schema.get("properties")
@@ -177,6 +199,10 @@ class BaseStream(ABC):
         return record
 
     def _normalize_state_bookmarks(self, state: Dict) -> Dict:
+        """
+        Normalize any date-like bookmark values in STATE to ISO8601Z.
+        Emits a normalized STATE immediately if anything changed.
+        """
         if not isinstance(state, dict):
             return state
         changed = False
@@ -209,6 +235,9 @@ class BaseStream(ABC):
             write_state(state)
         return state
 
+    # -----------------------------
+    # Core stream contract
+    # -----------------------------
     @property
     @abstractmethod
     def tap_stream_id(self) -> str:
@@ -241,12 +270,15 @@ class BaseStream(ABC):
     ) -> Dict:
         """Performs a replication sync for the stream."""
 
+    # -----------------------------
+    # Network/pagination
+    # -----------------------------
     def get_records(self) -> Iterator:
         """Interacts with api client interaction and pagination."""
         self.params["page_size"] = self.client.config.get("page_size", DEFAULT_PAGE_SIZE)
 
         next_page = 1
-        has_yielded = False
+        has_yielded = False  # track if we've emitted anything yet
 
         while next_page:
             try:
@@ -259,6 +291,7 @@ class BaseStream(ABC):
                     path=self.path,
                 )
 
+            # ---- Generic auth surfacing (NO hardcoding) ----
             except (CopperUnauthorizedError, CopperForbiddenError) as e:
                 status = getattr(getattr(e, "response", None), "status_code", None)
                 msg = (
@@ -267,6 +300,7 @@ class BaseStream(ABC):
                 )
                 raise type(e)(msg, getattr(e, "response", None)) from e
 
+            # ---- Optional: endpoint not available but vendor returns 404 ----
             except CopperNotFoundError as e:
                 if not has_yielded and (next_page == 1):
                     raise CopperUnauthorizedError(
@@ -388,14 +422,12 @@ class IncrementalStream(BaseStream):
             stream=self.tap_stream_id
         )
 
-        try:
-            bookmark_sec = _to_epoch_seconds(raw_bookmark)
-        except ValueError:
-            bookmark_sec = float("-inf")
+        # REMOVED: try/except ValueError fallback (fail-fast like other taps)
+        bookmark_sec = _to_epoch_seconds(raw_bookmark)
 
         current_max_sec = bookmark_sec
 
-        self.update_data_payload()
+        self.update_data_payload()  # keep body clean
         self.url_endpoint = self.get_url_endpoint(parent_obj)
 
         with metrics.record_counter(self.tap_stream_id) as counter:
@@ -418,10 +450,8 @@ class IncrementalStream(BaseStream):
                 if record_bookmark is None:
                     continue
 
-                try:
-                    rec_sec = _to_epoch_seconds(record_bookmark)
-                except ValueError:
-                    rec_sec = float("inf")
+                # REMOVED: try/except ValueError fallback (fail-fast like other taps)
+                rec_sec = _to_epoch_seconds(record_bookmark)
 
                 if rec_sec >= bookmark_sec:
                     if self.is_selected():
@@ -491,6 +521,7 @@ class FullTableStream(BaseStream):
                     )
 
             return counter.value
+
 
 class ParentBaseStream(IncrementalStream):
     """Base Class for Parent Stream."""

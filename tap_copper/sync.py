@@ -7,14 +7,15 @@ import singer
 from singer.transform import UNIX_MILLISECONDS_INTEGER_DATETIME_PARSING
 from tap_copper.streams import STREAMS
 from tap_copper.client import Client
-from tap_copper.exceptions import CopperUnauthorizedError  # <-- NEW
+from tap_copper.exceptions import CopperUnauthorizedError  # fail-fast on unauthorized
 
 LOGGER = singer.get_logger()
 
 
 def update_currently_syncing(state: Dict, stream_name: str) -> None:
     """
-    Update currently_syncing in state and write it
+    Update currently_syncing in state and write it.
+    If stream_name is falsy, clears currently_syncing.
     """
     if not stream_name and singer.get_currently_syncing(state):
         del state["currently_syncing"]
@@ -25,7 +26,7 @@ def update_currently_syncing(state: Dict, stream_name: str) -> None:
 
 def write_schema(stream, client, streams_to_sync, catalog) -> None:
     """
-    Write schema for stream and its children
+    Write schema for stream and its children; attach selected children for sync.
     """
     if stream.is_selected():
         stream.write_schema()
@@ -39,7 +40,7 @@ def write_schema(stream, client, streams_to_sync, catalog) -> None:
 
 def sync(client: Client, config: Dict, catalog: singer.Catalog, state) -> None:
     """
-    Sync selected streams from catalog
+    Sync selected streams from catalog.
     """
     streams_to_sync = []
     for stream in catalog.get_selected_streams(state):
@@ -52,21 +53,24 @@ def sync(client: Client, config: Dict, catalog: singer.Catalog, state) -> None:
     with singer.Transformer(integer_datetime_fmt=UNIX_MILLISECONDS_INTEGER_DATETIME_PARSING) as transformer:
         for stream_name in streams_to_sync[:]:
             stream = STREAMS[stream_name](client, catalog.get_stream(stream_name))
+
+            # Ensure parents will be synced first if selected children exist
             if stream.parent:
                 if stream.parent not in streams_to_sync:
                     streams_to_sync.append(stream.parent)
                 continue
 
+            # Write schemas and attach children that are selected
             write_schema(stream, client, streams_to_sync, catalog)
+
             LOGGER.info("START Syncing: %s", stream_name)
             update_currently_syncing(state, stream_name)
 
             try:
                 total_records = stream.sync(state=state, transformer=transformer)
             except CopperUnauthorizedError as e:
-                LOGGER.warning(str(e))
-                update_currently_syncing(state, None)
-                continue
+                LOGGER.error("Unauthorized for stream %s: %s", stream_name, e)
+                raise
 
             update_currently_syncing(state, None)
             LOGGER.info("FINISHED Syncing: %s, total_records: %s", stream_name, total_records)
