@@ -42,6 +42,10 @@ def sync(client: Client, config: Dict, catalog: singer.Catalog, state) -> None:
     """
     Sync selected streams from catalog.
     """
+    if not catalog or not catalog.get_selected_streams(state):
+        LOGGER.warning("No catalog provided or no streams selected. Skipping sync.")
+        return
+
     streams_to_sync = []
     for stream in catalog.get_selected_streams(state):
         streams_to_sync.append(stream.stream)
@@ -69,9 +73,9 @@ def sync(client: Client, config: Dict, catalog: singer.Catalog, state) -> None:
             try:
                 total_records = stream.sync(state=state, transformer=transformer)
             except CopperUnauthorizedError as e:
-                    msg = f"Unauthorized stream: {stream_name}. Check API credentials or permissions."
-                    LOGGER.error(msg)
-                    raise Exception(msg) from e
-            
+                msg = f"Unauthorized stream: {stream_name}. Check API credentials or permissions."
+                LOGGER.error(msg)
+                raise Exception(msg) from e
+
             update_currently_syncing(state, None)
             LOGGER.info("FINISHED Syncing: %s, total_records: %s", stream_name, total_records)

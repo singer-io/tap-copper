@@ -41,8 +41,8 @@ def main(argv=None):
         return 0
 
     if not args.catalog:
-        LOGGER.error("Catalog is required for sync. Use --catalog <file>.")
-        return 1
+        LOGGER.warning("No catalog provided. Skipping sync.")
+        return 0
 
     with open(args.catalog, "r", encoding="utf-8") as fh:
         catalog = Catalog.from_dict(json.load(fh))

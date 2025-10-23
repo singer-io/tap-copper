@@ -19,7 +19,6 @@ from singer import (
 
 # Generic HTTP→domain exceptions
 from tap_copper.exceptions import (
-    CopperError,
     CopperNotFoundError,       # 404
     CopperUnauthorizedError,   # 401
     CopperForbiddenError,      # 403 (if defined in your mapping)
@@ -179,7 +178,12 @@ class BaseStream(ABC):
         if not isinstance(record, dict):
             return record
         for k in list(record.keys()):
-            if k in self._date_fields and record[k] is not None:
+            if record[k] is None:
+                continue
+            lk = k.lower()
+            if (k in self._date_fields
+                or lk.endswith(("_at", "_time"))
+                or "date" in lk):
                 try:
                     record[k] = _to_iso8601_z(record[k])
                 except Exception:
@@ -422,6 +426,7 @@ class IncrementalStream(BaseStream):
         with metrics.record_counter(self.tap_stream_id) as counter:
             for record in self.get_records():
                 record = self.modify_object(record, parent_obj)
+                record = self._normalize_record_dates(record)
 
                 if not isinstance(record, dict):
                     LOGGER.warning(
@@ -494,6 +499,7 @@ class FullTableStream(BaseStream):
                     continue
 
                 record = self.modify_object(record, parent_obj)
+                record = self._normalize_record_dates(record)
 
                 transformed_record = transformer.transform(
                     record, self.schema, self.metadata

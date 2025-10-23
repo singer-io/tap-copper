@@ -119,7 +119,7 @@ def get_schemas(config: Dict = None) -> Tuple[Dict[str, Any], Dict[str, Any]]:
                 mdata_map = metadata.write(
                     mdata_map, ("properties", field_name), "inclusion", "automatic"
                 )
-        
+
         mdata_map = check_stream_authorization(config, stream_name, stream_obj, mdata_map)
         parent_tap_stream_id = getattr(stream_obj, "parent", None)
         if parent_tap_stream_id:

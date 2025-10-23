@@ -13,5 +13,5 @@ class copperAutomaticFields(MinimumSelectionTest, copperBaseTest):
         return "tap_tester_copper_automatic_fields_test"
 
     def streams_to_test(self):
-        streams_to_exclude = {}
+        streams_to_exclude = {"pipeline_stages"}  # Skipping as we don't have proper credentials
         return self.expected_stream_names().difference(streams_to_exclude)
