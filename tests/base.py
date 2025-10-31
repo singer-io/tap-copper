@@ -148,6 +148,15 @@ class copperBaseTest(BaseCase):
 
     @staticmethod
     def get_credentials():
+        """Get the credentials for the Copper API.
+        Creds Mapping:
+            api_key:        COPPER_API_KEY --> used in X-PW-AccessToken header
+            user_email:    COPPER_USER_EMAIL --> used in X-PW-UserEmail header
+
+        Returns:
+            dict: A dictionary containing the API credentials.
+        """
+
         credentials_dict = {}
         creds = {
             'api_key':    'COPPER_API_KEY',     # X-PW-AccessToken

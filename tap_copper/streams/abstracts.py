@@ -181,9 +181,12 @@ class BaseStream(ABC):
             if record[k] is None:
                 continue
             lk = k.lower()
-            if (k in self._date_fields
+            if (
+                k in self._date_fields
                 or lk.endswith(("_at", "_time"))
-                or "date" in lk):
+                or lk.endswith("_date")
+                or lk.startswith("date_")
+            ):
                 try:
                     record[k] = _to_iso8601_z(record[k])
                 except Exception:
