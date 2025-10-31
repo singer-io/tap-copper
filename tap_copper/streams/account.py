@@ -1,5 +1,5 @@
-from typing import Dict, Iterator, Any
 from tap_copper.streams.abstracts import FullTableStream
+
 
 class Account(FullTableStream):
     """Single account object (one-shot GET)."""

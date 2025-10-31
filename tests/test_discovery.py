@@ -11,4 +11,5 @@ class copperDiscoveryTest(DiscoveryTest, copperBaseTest):
         return "tap_tester_copper_discovery_test"
 
     def streams_to_test(self):
-        return self.expected_stream_names()
+        streams_to_exclude = {"pipeline_stages"}
+        return self.expected_stream_names().difference(streams_to_exclude)

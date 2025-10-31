@@ -10,5 +10,5 @@ class ActivitiesSearch(IncrementalStream):
 
     http_method = "POST"
     path = "activities/search"
-    data_key = None 
+    data_key = None
     uses_page_number = True

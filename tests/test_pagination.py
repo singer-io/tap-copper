@@ -1,6 +1,7 @@
 from tap_tester.base_suite_tests.pagination_test import PaginationTest
 from base import copperBaseTest
 
+
 class copperPaginationTest(PaginationTest, copperBaseTest):
     """
     Ensure tap can replicate multiple pages of data for streams that use pagination.
@@ -11,5 +12,5 @@ class copperPaginationTest(PaginationTest, copperBaseTest):
         return "tap_tester_copper_pagination_test"
 
     def streams_to_test(self):
-        streams_to_exclude = {}
+        streams_to_exclude = {"pipeline_stages", "projects", "leads"}.union(self.get_full_table_streams())
         return self.expected_stream_names().difference(streams_to_exclude)

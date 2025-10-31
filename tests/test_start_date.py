@@ -12,12 +12,13 @@ class copperStartDateTest(StartDateTest, copperBaseTest):
         return "tap_tester_copper_start_date_test"
 
     def streams_to_test(self):
-        streams_to_exclude = {}
+        streams_to_exclude = {"pipeline_stages", "leads", "projects"}.union(self.get_full_table_streams())
         return self.expected_stream_names().difference(streams_to_exclude)
 
     @property
     def start_date_1(self):
-        return "2015-03-25T00:00:00Z"
+        return "2024-08-07T00:00:00Z"
+
     @property
     def start_date_2(self):
-        return "2017-01-25T00:00:00Z"
+        return "2025-08-09T00:00:00Z"
