@@ -7,6 +7,7 @@ class copperAllFields(AllFieldsTest, copperBaseTest):
     the replication of all fields."""
 
     MISSING_FIELDS = {
+        # We were unable to generate data for these fields
         "users": [
             "groups",
         ],

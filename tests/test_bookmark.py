@@ -21,6 +21,7 @@ class copperBookMarkTest(BookmarkTest, copperBaseTest):
         return "tap_tester_copper_bookmark_test"
 
     def streams_to_test(self):
+        # Excluded pipeline_stages as we don't have access, projects and leads were not having sufficient data
         streams_to_exclude = {"pipeline_stages", "projects", "leads"}.union(self.get_full_table_streams())
         return self.expected_stream_names().difference(streams_to_exclude)
 
