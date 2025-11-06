@@ -219,27 +219,26 @@ This behavior is intentional and consistent with other official taps (e.g., tap-
     - [target-stitch](https://github.com/singer-io/target-stitch)
 
 3. Create your tap's `config.json` file.  The tap config file for this tap should include these entries:
-   - `start_date` - the default value to use if no bookmark exists for an endpoint (rfc3339 date string)
-   - `user_agent` (string, optional): Process and email for API logging purposes. Example: `tap-copper <api_user_email@your_company.com>`
-   - `request_timeout` (integer, `300`): Max time for which request should wait to get a response. Default request_timeout is 300 seconds.
+   - `api_key` - the api_key from your Copper account.
+   - `user_email` - the email address associated with your Copper account.
+   - `start_date` - The start date for data extraction in ISO 8601 format. e.g. "2023-01-01T00:00:00Z".
    
     ```json
     {
-        "start_date": "2019-01-01T00:00:00Z",
-        "user_agent": "tap-copper <api_user_email@your_company.com>",
-        "request_timeout": 300,
-        ...
+    "api_key": "your_copper_api_key_here",
+    "user_email": "copper_user@domain.com",
+    "start_date": "2023-01-01T00:00:00Z"
     }```
 
     Optionally, also create a `state.json` file. `currently_syncing` is an optional attribute used for identifying the last object to be synced in case the job is interrupted mid-stream. The next run would begin where the last job left off.
 
     ```json
     {
-        "currently_syncing": "engage",
+        "currently_syncing": "people",
         "bookmarks": {
-            "export": "2019-09-27T22:34:39.000000Z",
-            "funnels": "2019-09-28T15:30:26.000000Z",
-            "revenue": "2019-09-28T18:23:53Z"
+            "companies": "2019-09-27T22:34:39Z",
+            "projects": "2019-09-28T15:30:26Z",
+            "tasks": "2019-09-28T18:23:53Z"
         }
     }
     ```

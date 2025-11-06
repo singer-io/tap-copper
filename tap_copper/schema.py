@@ -76,7 +76,7 @@ def check_stream_authorization(config: Dict, stream_name: str, stream_obj, mdata
         else:
             return mdata
 
-        if resp.status_code in (401, 403,404):
+        if resp.status_code in (401, 403, 404):
             LOGGER.warning(f"Cannot access data for '{stream_name}'. Please check your credentials and permissions.")
     except Exception as e:
         LOGGER.error(f"Error testing authorization for stream {stream_name}: {e}")

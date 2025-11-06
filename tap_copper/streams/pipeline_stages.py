@@ -1,7 +1,8 @@
 from typing import Optional, Dict, Any
 from tap_copper.streams.abstracts import FullTableStream
 
-#unsupported stream
+
+# unsupported stream
 class PipelineStages(FullTableStream):
     tap_stream_id = "pipeline_stages"
     key_properties = ["id"]
