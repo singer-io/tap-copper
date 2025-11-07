@@ -6,7 +6,7 @@ spec](https://github.com/singer-io/getting-started/blob/master/docs/SPEC.md).
 
 This tap:
 
-- Pulls raw data from the [copper API].
+- Pulls raw data from the [copper API](https://developer.copper.com/).
 - Extracts the following resources:
     - [Account](https://developer.copper.com/account-and-users/fetch-account-details.html)
 
@@ -49,8 +49,7 @@ This tap:
 ## Streams
 
 
-**[account]**
-(https://developer.copper.com/account-and-users/fetch-account-details.html)
+**[account](https://developer.copper.com/account-and-users/fetch-account-details.html)**
 
 Data Key = root
 
@@ -58,22 +57,19 @@ Primary keys: ['id']
 
 Replication strategy: FULL_TABLE
 
-**[activities_search]**
-(https://developer.copper.com/activities/list-activities-search.html)
+**[activities_search](https://developer.copper.com/activities/list-activities-search.html)**
 
 Primary keys: ['id']
 
 Replication strategy: INCREMENTAL
 
-**[companies]**
-(https://developer.copper.com/companies/list-companies-search.html)
+**[companies](https://developer.copper.com/companies/list-companies-search.html)**
 
 Primary keys: ['id']
 
 Replication strategy: INCREMENTAL
 
-**[contact_types]**
-(https://developer.copper.com/people/list-contact-types.html)
+**[contact_types](https://developer.copper.com/people/list-contact-types.html)**
 
 Data Key = root
 
@@ -81,8 +77,7 @@ Primary keys: ['id']
 
 Replication strategy: FULL_TABLE
 
-**[custom_field_definitions]**
-(https://developer.copper.com/custom-fields/general/list-custom-field-definitions.html)
+**[custom_field_definitions](https://developer.copper.com/custom-fields/general/list-custom-field-definitions.html)**
 
 Data Key = root
 
@@ -90,8 +85,7 @@ Primary keys: ['id']
 
 Replication strategy: FULL_TABLE
 
-**[customer_sources]**
-(https://developer.copper.com/leads/list-customer-sources.html)
+**[customer_sources](https://developer.copper.com/leads/list-customer-sources.html)**
 
 Data Key = root
 
@@ -99,8 +93,7 @@ Primary keys: ['id']
 
 Replication strategy: FULL_TABLE
 
-**[lead_statuses]**
-(https://developer.copper.com/leads/list-lead-statuses.html)
+**[lead_statuses](https://developer.copper.com/leads/list-lead-statuses.html)**
 
 Data Key = root
 
@@ -108,15 +101,13 @@ Primary keys: ['id']
 
 Replication strategy: FULL_TABLE
 
-**[leads]**
-(https://developer.copper.com/leads/list-leads-search.html)
+**[leads](https://developer.copper.com/leads/list-leads-search.html)**
 
 Primary keys: ['id']
 
 Replication strategy: INCREMENTAL
 
-**[loss_reasons]**
-(https://developer.copper.com/opportunities/list-loss-reasons.html)
+**[loss_reasons](https://developer.copper.com/opportunities/list-loss-reasons.html)**
 
 Data Key = root
 
@@ -124,22 +115,19 @@ Primary keys: ['id']
 
 Replication strategy: FULL_TABLE
 
-**[opportunities]**
-(https://developer.copper.com/opportunities/list-opportunities-search.html)
+**[opportunities](https://developer.copper.com/opportunities/list-opportunities-search.html)**
 
 Primary keys: ['id']
 
 Replication strategy: INCREMENTAL
 
-**[people]**
-(https://developer.copper.com/people/list-people-search.html)
+**[people](https://developer.copper.com/people/list-people-search.html)**
 
 Primary keys: ['id']
 
 Replication strategy: INCREMENTAL
 
-**[pipeline_stages]**
-(https://developer.copper.com/opportunities/list-pipeline-stages.html)
+**[pipeline_stages](https://developer.copper.com/opportunities/list-pipeline-stages.html)**
 
 Data Key = root
 
@@ -147,8 +135,7 @@ Primary keys: ['id']
 
 Replication strategy: FULL_TABLE
 
-**[pipelines]**
-(https://developer.copper.com/opportunities/list-pipelines.html)
+**[pipelines](https://developer.copper.com/opportunities/list-pipelines.html)**
 
 Data Key = root
 
@@ -156,15 +143,13 @@ Primary keys: ['id']
 
 Replication strategy: FULL_TABLE
 
-**[projects]**
-(https://developer.copper.com/projects/list-projects-search.html)
+**[projects](https://developer.copper.com/projects/list-projects-search.html)**
 
 Primary keys: ['id']
 
 Replication strategy: INCREMENTAL
 
-**[tags]**
-(https://developer.copper.com/tags/list-tags.html)
+**[tags](https://developer.copper.com/tags/list-tags.html)**
 
 Data Key = root
 
@@ -172,15 +157,13 @@ Primary keys: ['name']
 
 Replication strategy: FULL_TABLE
 
-**[tasks]**
-(https://developer.copper.com/tasks/list-tasks-search.html)
+**[tasks](https://developer.copper.com/tasks/list-tasks-search.html)**
 
 Primary keys: ['id']
 
 Replication strategy: INCREMENTAL
 
-**[users]**
-(https://developer.copper.com/account-and-users/list-users.html)
+**[users](https://developer.copper.com/account-and-users/list-users.html)**
 
 Primary keys: ['id']
 
@@ -213,7 +196,6 @@ This behavior is intentional and consistent with other official taps (e.g., tap-
     > pip install singer-python
     > pip install target-stitch
     > pip install target-json
-    
     ```
     - [singer-tools](https://github.com/singer-io/singer-tools)
     - [target-stitch](https://github.com/singer-io/target-stitch)
@@ -222,13 +204,14 @@ This behavior is intentional and consistent with other official taps (e.g., tap-
    - `api_key` - the api_key from your Copper account.
    - `user_email` - the email address associated with your Copper account.
    - `start_date` - The start date for data extraction in ISO 8601 format. e.g. "2023-01-01T00:00:00Z".
-   
+
     ```json
     {
-    "api_key": "your_copper_api_key_here",
-    "user_email": "copper_user@domain.com",
-    "start_date": "2023-01-01T00:00:00Z"
-    }```
+        "api_key": "your_copper_api_key_here",
+        "user_email": "copper_user@domain.com",
+        "start_date": "2023-01-01T00:00:00Z"
+    }
+    ```
 
     Optionally, also create a `state.json` file. `currently_syncing` is an optional attribute used for identifying the last object to be synced in case the job is interrupted mid-stream. The next run would begin where the last job left off.
 
@@ -298,7 +281,7 @@ This behavior is intentional and consistent with other official taps (e.g., tap-
     Note, you may need to install test dependencies.
 
     ```
-    pip install -e .'[dev]'
+    pip install -e .
     ```
 ---
 
