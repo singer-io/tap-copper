@@ -2,14 +2,14 @@ from typing import Optional, Dict, Any
 from tap_copper.streams.abstracts import FullTableStream
 
 
-class Users(FullTableStream):
-    """Full-table search for users (page-number pagination)."""
-    tap_stream_id = "users"
+# unsupported stream
+class PipelineStages(FullTableStream):
+    tap_stream_id = "pipeline_stages"
     key_properties = ["id"]
     replication_method = "FULL_TABLE"
 
     http_method = "POST"
-    path = "users/search"
+    path = "pipeline_stages/search"
     data_key = None
 
     uses_page_number = True

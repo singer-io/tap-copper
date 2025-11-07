@@ -1,23 +1,49 @@
 {
-    "type": "object",
-    "properties": {
-        "id": {
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "name": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "email": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "groups": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "type": [
+          "null",
+          "object"
+        ],
+        "properties": {
+          "id": {
             "type": [
-                "null",
-                "integer"
+              "null",
+              "integer"
             ]
-        },
-        "name": {
+          },
+          "name": {
             "type": [
-                "null",
-                "string"
+              "null",
+              "string"
             ]
-        },
-        "email": {
-            "type": [
-                "null",
-                "string"
-            ]
+          }
         }
+      }
     }
-} 
+  }
+}

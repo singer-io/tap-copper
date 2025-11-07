@@ -1,0 +1,94 @@
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "name": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "data_type": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "available_on": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "type": [
+          "null",
+          "string"
+        ]
+      }
+    },
+    "is_filterable": {
+      "type": [
+        "null",
+        "boolean"
+      ]
+    },
+    "currency": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "options": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": [
+              "null",
+              "integer"
+            ]
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "label": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rank": {
+            "type": [
+              "null",
+              "integer"
+            ]
+          },
+          "position": {
+            "type": [
+              "null",
+              "integer"
+            ]
+          },
+          "is_active": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

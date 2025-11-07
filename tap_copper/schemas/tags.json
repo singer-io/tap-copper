@@ -1,0 +1,53 @@
+{
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "count": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "count_people": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "count_leads": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "count_companies": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "count_opportunities": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "count_projects": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "count_tasks": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    }
+  }
+}

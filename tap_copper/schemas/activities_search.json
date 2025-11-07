@@ -1,34 +1,11 @@
 {
-  "type": [
-    "null",
-    "object"
-  ],
+  "type": "object",
   "properties": {
     "id": {
       "type": [
         "null",
-        "integer"
+        "string"
       ]
-    },
-    "parent": {
-      "type": [
-        "null",
-        "object"
-      ],
-      "properties": {
-        "id": {
-          "type": [
-            "null",
-            "integer"
-          ]
-        },
-        "type": {
-          "type": [
-            "null",
-            "string"
-          ]
-        }
-      }
     },
     "type": {
       "type": [
@@ -56,11 +33,25 @@
         }
       }
     },
-    "user_id": {
+    "parent": {
       "type": [
         "null",
-        "integer"
-      ]
+        "object"
+      ],
+      "properties": {
+        "id": {
+          "type": [
+            "null",
+            "integer"
+          ]
+        },
+        "type": {
+          "type": [
+            "null",
+            "string"
+          ]
+        }
+      }
     },
     "details": {
       "type": [
@@ -68,65 +59,46 @@
         "string"
       ]
     },
-    "activity_date": {
+    "user_id": {
       "type": [
         "null",
         "integer"
       ]
+    },
+    "activity_date": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "format": "date-time"
     },
     "old_value": {
       "type": [
         "null",
         "object",
         "string"
-      ],
-      "properties": {
-        "id": {
-          "type": [
-            "null",
-            "integer"
-          ]
-        },
-        "name": {
-          "type": [
-            "null",
-            "string"
-          ]
-        }
-      }
+      ]
     },
     "new_value": {
       "type": [
         "null",
         "object",
         "string"
-      ],
-      "properties": {
-        "id": {
-          "type": [
-            "null",
-            "integer"
-          ]
-        },
-        "name": {
-          "type": [
-            "null",
-            "string"
-          ]
-        }
-      }
+      ]
     },
     "date_created": {
       "type": [
         "null",
-        "integer"
-      ]
+        "string"
+      ],
+      "format": "date-time"
     },
     "date_modified": {
       "type": [
         "null",
-        "integer"
-      ]
+        "string"
+      ],
+      "format": "date-time"
     }
   }
 }

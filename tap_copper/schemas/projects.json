@@ -1,13 +1,10 @@
 {
-  "type": [
-    "null",
-    "object"
-  ],
+  "type": "object",
   "properties": {
     "id": {
       "type": [
         "null",
-        "integer"
+        "string"
       ]
     },
     "name": {
@@ -42,33 +39,6 @@
         "integer"
       ]
     },
-    "custom_fields": {
-      "type": [
-        "null",
-        "array"
-      ],
-      "items": {
-        "type": [
-          "null",
-          "object"
-        ],
-        "properties": {
-          "custom_field_definition_id": {
-            "type": [
-              "null",
-              "integer"
-            ]
-          },
-          "value": {
-            "type": [
-              "null",
-              "string",
-              "integer"
-            ]
-          }
-        }
-      }
-    },
     "status": {
       "type": [
         "null",
@@ -79,18 +49,6 @@
       "type": [
         "null",
         "string"
-      ]
-    },
-    "date_created": {
-      "type": [
-        "null",
-        "integer"
-      ]
-    },
-    "date_modified": {
-      "type": [
-        "null",
-        "integer"
       ]
     },
     "tags": {
@@ -104,6 +62,70 @@
           "string"
         ]
       }
+    },
+    "custom_fields": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "type": "object",
+        "properties": {
+          "custom_field_definition_id": {
+            "type": [
+              "null",
+              "integer"
+            ]
+          },
+          "value": {
+            "type": [
+              "null",
+              "string",
+              "number",
+              "integer",
+              "boolean",
+              "array",
+              "object"
+            ]
+          },
+          "computed_value": {
+            "type": [
+              "null",
+              "string",
+              "number",
+              "integer",
+              "boolean",
+              "array"
+            ]
+          }
+        }
+      }
+    },
+    "company_id": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "company_name": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "date_created": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "format": "date-time"
+    },
+    "date_modified": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "format": "date-time"
     }
   }
 }

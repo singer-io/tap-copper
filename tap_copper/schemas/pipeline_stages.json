@@ -1,0 +1,29 @@
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "name": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "pipeline_id": {
+      "type": [
+        "null",
+        "integer"
+      ]
+    },
+    "win_probability": {
+      "type": [
+        "null",
+        "number"
+      ]
+    }
+  }
+}

@@ -1,13 +1,10 @@
 {
-  "type": [
-    "null",
-    "object"
-  ],
+  "type": "object",
   "properties": {
     "id": {
       "type": [
         "null",
-        "integer"
+        "string"
       ]
     },
     "name": {
@@ -15,33 +12,6 @@
         "null",
         "string"
       ]
-    },
-    "custom_fields": {
-      "type": [
-        "null",
-        "array"
-      ],
-      "items": {
-        "type": [
-          "null",
-          "object"
-        ],
-        "properties": {
-          "custom_field_definition_id": {
-            "type": [
-              "null",
-              "integer"
-            ]
-          },
-          "value": {
-            "type": [
-              "null",
-              "string",
-              "integer"
-            ]
-          }
-        }
-      }
     },
     "related_resource": {
       "type": [
@@ -72,20 +42,23 @@
     "due_date": {
       "type": [
         "null",
-        "integer"
-      ]
+        "string"
+      ],
+      "format": "date-time"
     },
     "reminder_date": {
       "type": [
         "null",
-        "integer"
-      ]
+        "string"
+      ],
+      "format": "date-time"
     },
     "completed_date": {
       "type": [
         "null",
-        "integer"
-      ]
+        "string"
+      ],
+      "format": "date-time"
     },
     "priority": {
       "type": [
@@ -105,24 +78,6 @@
         "string"
       ]
     },
-    "date_created": {
-      "type": [
-        "null",
-        "integer"
-      ]
-    },
-    "date_modified": {
-      "type": [
-        "null",
-        "integer"
-      ]
-    },
-    "custom_activity_type_id": {
-      "type": [
-        "null",
-        "integer"
-      ]
-    },
     "tags": {
       "type": [
         "null",
@@ -134,6 +89,38 @@
           "string"
         ]
       }
+    },
+    "custom_fields": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "type": [
+          "null",
+          "object"
+        ]
+      }
+    },
+    "date_created": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "format": "date-time"
+    },
+    "date_modified": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "format": "date-time"
+    },
+    "custom_activity_type_id": {
+      "type": [
+        "null",
+        "integer"
+      ]
     }
   }
 }

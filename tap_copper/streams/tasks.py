@@ -1,20 +1,15 @@
-import singer
-from tap_copper.streams.base import BaseStream
-
-LOGGER = singer.get_logger()
+from tap_copper.streams.abstracts import IncrementalStream
 
 
-class TasksStream(BaseStream):
-    API_METHOD = 'POST'
-    TABLE = 'tasks'
-    KEY_PROPERTIES = ['id']
+class Tasks(IncrementalStream):
+    """Incremental search over tasks (page-number pagination)."""
+    tap_stream_id = "tasks"
+    key_properties = ["id"]
+    replication_method = "INCREMENTAL"
+    replication_keys = ["date_modified"]
 
+    http_method = "POST"
+    path = "tasks/search"
+    data_key = None
 
-    @property
-    def path(self):
-        return '/tasks/search'
-
-    def custom_body(self):
-        return {
-            "minimum_modified_date": self.get_start_date()
-        }
+    uses_page_number = True

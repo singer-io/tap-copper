@@ -1,13 +1,10 @@
 {
-  "type": [
-    "null",
-    "object"
-  ],
+  "type": "object",
   "properties": {
     "id": {
       "type": [
         "null",
-        "integer"
+        "string"
       ]
     },
     "name": {
@@ -26,7 +23,8 @@
       "type": [
         "null",
         "string"
-      ]
+      ],
+      "format": "date-time"
     },
     "company_id": {
       "type": [
@@ -64,10 +62,22 @@
         "integer"
       ]
     },
+    "pipeline_is_revenue": {
+      "type": [
+        "null",
+        "boolean"
+      ]
+    },
     "pipeline_stage_id": {
       "type": [
         "null",
         "integer"
+      ]
+    },
+    "pipeline_type": {
+      "type": [
+        "null",
+        "string"
       ]
     },
     "primary_contact_id": {
@@ -120,49 +130,69 @@
     },
     "converted_unit": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "converted_value": {
       "type": [
-        "null"
+        "null",
+        "number"
       ]
     },
     "win_probability": {
       "type": [
         "null",
-        "integer"
+        "number"
       ]
     },
     "date_stage_changed": {
       "type": [
         "null",
-        "integer"
-      ]
+        "string"
+      ],
+      "format": "date-time"
     },
     "date_last_contacted": {
       "type": [
         "null",
-        "integer"
-      ]
+        "string"
+      ],
+      "format": "date-time"
+    },
+    "leads_converted_from": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "type": [
+          "null",
+          "integer",
+          "string"
+        ]
+      }
     },
     "date_lead_created": {
       "type": [
         "null",
-        "integer"
-      ]
+        "string"
+      ],
+      "format": "date-time"
     },
     "date_created": {
       "type": [
         "null",
-        "integer"
-      ]
+        "string"
+      ],
+      "format": "date-time"
     },
     "date_modified": {
       "type": [
         "null",
-        "integer"
-      ]
+        "string"
+      ],
+      "format": "date-time"
     },
     "custom_fields": {
       "type": [
@@ -173,55 +203,7 @@
         "type": [
           "null",
           "object"
-        ],
-        "properties": {
-          "custom_field_definition_id": {
-            "type": [
-              "null",
-              "integer"
-            ]
-          },
-          "value": {
-            "type": [
-              "null",
-              "integer",
-              "string",
-              "array"
-            ],
-            "items": {
-              "type": [
-                "null",
-                "integer"
-              ]
-            }
-          }
-        }
-      }
-    },
-    "leads_converted_from": {
-      "type": [
-        "null",
-        "array"
-      ],
-      "items": {
-        "type": [
-          "null",
-          "object"
-        ],
-        "properties": {
-          "lead_id": {
-            "type": [
-              "null",
-              "integer"
-            ]
-          },
-          "converted_timestamp": {
-            "type": [
-              "null",
-              "integer"
-            ]
-          }
-        }
+        ]
       }
     }
   }
