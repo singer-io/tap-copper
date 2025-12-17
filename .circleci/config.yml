@@ -13,7 +13,7 @@ jobs:
             uv venv --python 3.9 /usr/local/share/virtualenvs/tap-copper
             source /usr/local/share/virtualenvs/tap-copper/bin/activate
             uv pip install -U setuptools
-            pip install -e .
+            uv pip install -e .
 
       - run:
           name: "JSON Validator"
