@@ -159,11 +159,11 @@ class copperBaseTest(BaseCase):
 
         credentials_dict = {}
         creds = {
-            'api_key':    'COPPER_API_KEY',     # X-PW-AccessToken
-            'user_email': 'COPPER_USER_EMAIL',  # X-PW-UserEmail
+            'api_key':    'TAP_COPPER_API_KEY',     # X-PW-AccessToken
+            'user_email': 'TAP_COPPER_USER_EMAIL',  # X-PW-UserEmail
             # add if your client uses base_url/subdomain:
-            # 'base_url':   'COPPER_BASE_URL',
-            # 'subdomain':  'COPPER_SUBDOMAIN',
+            # 'base_url':   'TAP_COPPER_BASE_URL',
+            # 'subdomain':  'TAP_COPPER_SUBDOMAIN',
         }
 
         for cred in creds:

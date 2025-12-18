@@ -1,1 +1,7 @@
-\
+# Changelog
+
+## 0.1.0
+  * Full tap re-write [#6](https://github.com/singer-io/tap-copper/pull/6), [#7](https://github.com/singer-io/tap-copper/pull/7), [38](https://github.com/singer-io/tap-copper/pull/8)
+
+## 0.0.1
+  * Initial Commit
