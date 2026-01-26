@@ -22,7 +22,7 @@ def do_discover(config: Dict = None):
     json.dump(catalog.to_dict(), sys.stdout, indent=2)
     LOGGER.info("Finished discover")
 
-
+@singer.utils.handle_top_exception(LOGGER)
 def main():
 
     parsed_args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
