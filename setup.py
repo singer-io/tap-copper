@@ -14,7 +14,6 @@ setup(name="tap-copper",
         "singer-python==6.1.1",
         "requests==2.32.4",
         "backoff==2.2.1",
-        "parameterized"
       ],
       entry_points="""
           [console_scripts]
