@@ -87,8 +87,8 @@ class BaseStream(ABC):
     def __init__(self, client=None, catalog=None) -> None:
         self.client = client
         self.catalog = catalog
-        self.schema = catalog.schema.to_dict()
-        self.metadata = metadata.to_map(catalog.metadata)
+        self.schema = catalog.schema.to_dict() if catalog else {}
+        self.metadata = metadata.to_map(catalog.metadata) if catalog else {}
         self.child_to_sync: List = []
         self.params: Dict[str, Any] = {}
         self.data_payload: Dict[str, Any] = {}
@@ -360,6 +360,40 @@ class BaseStream(ABC):
 
     def get_url_endpoint(self, parent_obj: Dict = None) -> str:
         return self.url_endpoint or f"{self.client.base_url}/{self.path}"
+
+    def check_access(self) -> bool:
+        """
+        Verify that the API credentials have read access to this stream.
+        Returns True if accessible, False if a 403 Forbidden error is raised.
+        Child streams always return True (access is governed by the parent check).
+        """
+        if self.parent:
+            return True
+
+        url = self.get_url_endpoint()
+        self.update_params()
+
+        if self.http_method == "POST":
+            self.update_data_payload()
+            body = self.data_payload
+        else:
+            body = None
+
+        try:
+            self.client.make_request(
+                self.http_method,
+                url,
+                self.params,
+                self.headers,
+                body=body,
+            )
+            return True
+        except CopperForbiddenError:
+            LOGGER.warning(
+                "Stream '%s' does not have read permission, excluding from catalog.",
+                self.tap_stream_id,
+            )
+            return False
 
 
 class IncrementalStream(BaseStream):

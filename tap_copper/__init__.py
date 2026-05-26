@@ -1,6 +1,5 @@
 import json
 import sys
-from typing import Dict
 
 import singer
 
@@ -13,12 +12,12 @@ LOGGER = singer.get_logger()
 REQUIRED_CONFIG_KEYS = ['api_key', 'user_email', 'start_date']
 
 
-def do_discover(config: Dict = None):
+def do_discover(client):
     """
     Discover and emit the catalog to stdout
     """
     LOGGER.info("Starting discover")
-    catalog = discover(config=config)
+    catalog = discover(client=client, config=client.config)
     json.dump(catalog.to_dict(), sys.stdout, indent=2)
     LOGGER.info("Finished discover")
 
@@ -32,7 +31,7 @@ def main():
 
     with Client(parsed_args.config) as client:
         if parsed_args.discover:
-            do_discover(config=parsed_args.config)
+            do_discover(client)
         elif parsed_args.catalog:
             sync(
                 client=client,
