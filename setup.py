@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 
 setup(name="tap-copper",
-      version="0.1.1",
+      version="0.1.2",
       description="Singer.io tap for extracting data from copper API",
       author="Stitch",
       url="http://singer.io",
@@ -12,7 +12,7 @@ setup(name="tap-copper",
       py_modules=["tap_copper"],
       install_requires=[
         "singer-python==6.1.1",
-        "requests==2.32.4",
+        "requests==2.33.0",
         "backoff==2.2.1",
       ],
       entry_points="""
