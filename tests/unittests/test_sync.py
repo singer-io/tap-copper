@@ -2,7 +2,7 @@
 
 """Unit tests for sync orchestration."""
 
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 import pytest
 from singer import metadata
 
