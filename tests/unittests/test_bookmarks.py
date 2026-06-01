@@ -2,7 +2,7 @@
 
 """Unit tests for bookmark read/write functionality."""
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 import pytest
 from singer import metadata
 
