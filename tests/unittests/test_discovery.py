@@ -2,7 +2,7 @@
 
 """Unit tests for discovery with access checks."""
 
-from unittest.mock import patch, MagicMock, PropertyMock
+from unittest.mock import patch, MagicMock
 import pytest
 
 from tap_copper.discover import discover, _apply_access_checks, _prune_inaccessible_children
