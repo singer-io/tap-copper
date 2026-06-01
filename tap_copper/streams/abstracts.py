@@ -389,10 +389,6 @@ class BaseStream(ABC):
             )
             return True
         except CopperForbiddenError:
-            LOGGER.warning(
-                "Stream '%s' does not have read permission, excluding from catalog.",
-                self.tap_stream_id,
-            )
             return False
 
 
