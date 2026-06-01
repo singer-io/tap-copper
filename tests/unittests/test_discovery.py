@@ -7,7 +7,6 @@ import pytest
 
 from tap_copper.discover import discover, _apply_access_checks, _prune_inaccessible_children
 from tap_copper.exceptions import CopperForbiddenError
-from tap_copper.streams import STREAMS
 
 
 def _make_stream_cls(parent_value, check_access_result=True):
