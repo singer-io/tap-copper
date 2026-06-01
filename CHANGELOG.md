@@ -1,8 +1,8 @@
 # Changelog
 
 ## 0.2.0
-  * Streams the credentials cannot access (403) are now excluded from the catalog during discovery instead of raising an error.
-  * Added unit tests for discovery, bookmark read/write, sync orchestration, and pagination.
+  * Streams returning 403 during discovery are excluded from the catalog; discovery still raises if no parent streams are accessible.
+  * Added unit tests for discovery, bookmark read/write, and sync orchestration.
 
 ## 0.1.1
   * Add singer.utils exception handling to main() [#11](https://github.com/singer-io/tap-copper/pull/11)
