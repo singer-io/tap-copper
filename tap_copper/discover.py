@@ -1,7 +1,6 @@
 import singer
 from singer import metadata
 from singer.catalog import Catalog, CatalogEntry, Schema
-from typing import Dict
 
 from tap_copper.schema import get_schemas
 from tap_copper.streams import STREAMS
@@ -59,13 +58,13 @@ def _apply_access_checks(client, schemas: dict, field_metadata: dict) -> None:
         )
 
 
-def discover(client, config: Dict = None) -> Catalog:
+def discover(client) -> Catalog:
     """
     Run the discovery mode, prepare the catalog file and return the catalog.
     Access to each stream is verified using the provided client and streams
     the credentials cannot read are excluded from the returned catalog.
     """
-    schemas, field_metadata = get_schemas(config=config)
+    schemas, field_metadata = get_schemas()
     _apply_access_checks(client, schemas, field_metadata)
 
     catalog = Catalog([])

@@ -17,7 +17,7 @@ def do_discover(client):
     Discover and emit the catalog to stdout
     """
     LOGGER.info("Starting discover")
-    catalog = discover(client=client, config=client.config)
+    catalog = discover(client=client)
     json.dump(catalog.to_dict(), sys.stdout, indent=2)
     LOGGER.info("Finished discover")
 

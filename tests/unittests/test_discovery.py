@@ -157,7 +157,7 @@ class TestDiscover:
         )
         mock_access_checks.return_value = None
 
-        catalog = discover(client=mock_client, config=mock_client.config)
+        catalog = discover(client=mock_client)
 
         assert len(catalog.streams) == 1
         assert catalog.streams[0].stream == "companies"
@@ -176,4 +176,4 @@ class TestDiscover:
             side_effect=CopperForbiddenError("No access"),
         ):
             with pytest.raises(CopperForbiddenError):
-                discover(client=mock_client, config=mock_client.config)
+                discover(client=mock_client)
