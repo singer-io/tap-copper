@@ -32,6 +32,7 @@ def main():
 
     with Client(parsed_args.config) as client:
         if parsed_args.discover:
+            client.check_api_credentials()
             do_discover(config=parsed_args.config)
         elif parsed_args.catalog:
             sync(

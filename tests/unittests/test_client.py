@@ -13,6 +13,7 @@ from tap_copper.exceptions import (
     CopperError,
     CopperRateLimitError,
     CopperServiceUnavailableError,
+    CopperUnauthorizedError,
 )
 
 # ---------------------------------------------------------------------
@@ -231,3 +232,33 @@ def test_empty_string_keys_are_stripped_from_headers_and_params(monkeypatch, cli
         res = client.make_request("GET", "https://example.test",
                                   params={"": "x", "a": 1}, headers={"": "y"})
         assert res == payload
+
+
+def test_check_api_credentials_calls_account_endpoint(monkeypatch, client_cfg):
+    mock_response = make_response(200, {"id": 1})
+    request_calls = []
+
+    def fake_request(*args, **kwargs):
+        request_calls.append((args, kwargs))
+        return mock_response
+
+    monkeypatch.setattr("requests.Session.request", fake_request)
+
+    client = Client(client_cfg)
+    client.check_api_credentials()
+
+    assert len(request_calls) == 1
+    args, kwargs = request_calls[0]
+    assert args[1] == "GET"
+    assert args[2].endswith("/account")
+
+
+def test_check_api_credentials_raises_unauthorized(monkeypatch, client_cfg):
+    monkeypatch.setattr(
+        "requests.Session.request",
+        lambda *_a, **_k: make_response(401, {"message": "Unauthorized"}),
+    )
+
+    client = Client(client_cfg)
+    with pytest.raises(CopperUnauthorizedError):
+        client.check_api_credentials()
