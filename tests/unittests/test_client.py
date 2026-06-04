@@ -251,6 +251,7 @@ def test_check_api_credentials_calls_account_endpoint(monkeypatch, client_cfg):
     args, kwargs = request_calls[0]
     assert args[1] == "GET"
     assert args[2].endswith("/account")
+    assert "json" not in kwargs
 
 
 def test_check_api_credentials_raises_unauthorized(monkeypatch, client_cfg):

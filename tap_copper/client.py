@@ -139,6 +139,7 @@ class Client:
             if method in ("GET", "POST"):
                 if method == "GET":
                     kwargs.pop("data", None)
+                    kwargs.pop("json", None)
                 response = self._session.request(method, endpoint, **kwargs)
                 raise_for_error(response)
             else:
