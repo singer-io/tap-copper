@@ -1,5 +1,9 @@
 # Changelog
 
+# 0.1.2
+  * Bump requests to 2.33.0 for security updates [#15](https://github.com/singer-io/tap-copper/pull/15)
+
+
 ## 0.1.1
   * Add singer.utils exception handling to main() [#11](https://github.com/singer-io/tap-copper/pull/11)
 
