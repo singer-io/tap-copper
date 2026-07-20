@@ -7,7 +7,7 @@ import pytest
 from singer import metadata
 
 from tap_copper.streams.abstracts import IncrementalStream, FullTableStream
-from tap_copper.exceptions import CopperForbiddenError
+from tap_copper.exceptions import CopperForbiddenError, CopperNotFoundError, CopperUnauthorizedError
 
 
 class ConcreteIncremental(IncrementalStream):
@@ -105,6 +105,35 @@ class TestCheckAccess:
         stream = ConcreteIncremental(client=mock_client, catalog=mock_catalog)
 
         assert stream.check_access() is False
+
+    def test_check_access_returns_false_on_unauthorized(self, mock_client, mock_catalog):
+        """check_access returns False when API returns 401."""
+        mock_client.make_request.side_effect = CopperUnauthorizedError("Unauthorized")
+        stream = ConcreteIncremental(client=mock_client, catalog=mock_catalog)
+
+        assert stream.check_access() is False
+
+    def test_check_access_returns_false_on_not_found(self, mock_client, mock_catalog):
+        """check_access returns False when API endpoint returns 404."""
+        mock_client.make_request.side_effect = CopperNotFoundError("Not Found")
+        stream = ConcreteIncremental(client=mock_client, catalog=mock_catalog)
+
+        assert stream.check_access() is False
+
+    def test_check_access_logs_warning_message_on_inaccessible_stream(self, mock_client, mock_catalog):
+        """check_access logs stream-specific warning when access probing fails."""
+        exc = CopperForbiddenError("Forbidden")
+        mock_client.make_request.side_effect = exc
+        stream = ConcreteIncremental(client=mock_client, catalog=mock_catalog)
+
+        with patch("tap_copper.streams.abstracts.LOGGER.warning") as mock_warning:
+            assert stream.check_access() is False
+
+        mock_warning.assert_called_once_with(
+            "Unauthorized Stream: %s, excluding from catalog. HTTP-Error-Message:'%s'",
+            stream.tap_stream_id,
+            str(exc),
+        )
 
     def test_check_access_returns_true_for_child_stream(self, mock_client, mock_catalog):
         """Child streams always return True without probing API."""

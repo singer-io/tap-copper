@@ -364,7 +364,7 @@ class BaseStream(ABC):
     def check_access(self) -> bool:
         """
         Verify that the API credentials have read access to this stream.
-        Returns True if accessible, False if a 403 Forbidden error is raised.
+        Returns True if accessible, False if access probing returns 401/403/404.
         Child streams always return True (access is governed by the parent check).
         """
         if self.parent:
@@ -388,7 +388,12 @@ class BaseStream(ABC):
                 body=body,
             )
             return True
-        except CopperForbiddenError:
+        except (CopperUnauthorizedError, CopperForbiddenError, CopperNotFoundError) as exc:
+            LOGGER.warning(
+                "Unauthorized Stream: %s, excluding from catalog. HTTP-Error-Message:'%s'",
+                self.tap_stream_id,
+                str(exc),
+            )
             return False
 
 

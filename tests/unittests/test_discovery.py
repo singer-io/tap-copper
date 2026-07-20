@@ -90,7 +90,33 @@ class TestApplyAccessChecks:
             with pytest.raises(CopperForbiddenError) as exc_info:
                 _apply_access_checks(mock_client, schemas, field_metadata)
 
-        assert "do not have 'read' access to any" in str(exc_info.value)
+        assert (
+            str(exc_info.value)
+            == "No streams are accessible. Ensure the credentials have read permission for at least one stream."
+        )
+
+    def test_partial_access_logs_unauthorized_streams_message(self, mock_client):
+        """When streams are excluded, warning should include unauthorized stream list."""
+        schemas = {"companies": {}, "people": {}, "leads": {}}
+        field_metadata = {"companies": [], "people": [], "leads": []}
+
+        mock_streams = {
+            "companies": _make_stream_cls("", False),
+            "people": _make_stream_cls("", True),
+            "leads": _make_stream_cls("", False),
+        }
+
+        with patch("tap_copper.discover.STREAMS", mock_streams), patch(
+            "tap_copper.discover.LOGGER.warning"
+        ) as mock_warning:
+            _apply_access_checks(mock_client, schemas, field_metadata)
+
+        assert "companies" not in schemas
+        assert "leads" not in schemas
+        mock_warning.assert_called_with(
+            "Unauthorized streams excluded from catalog: %s",
+            "companies, leads",
+        )
 
     def test_child_streams_not_probed(self, mock_client):
         """Child streams should not be probed directly; access governed by parent."""

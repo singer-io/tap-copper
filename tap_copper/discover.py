@@ -14,6 +14,7 @@ def _prune_inaccessible_children(schemas: dict, field_metadata: dict) -> None:
     Remove child streams from the catalog whose parent stream was excluded.
     Mutates schemas and field_metadata in place.
     """
+    to_remove = []
     for name, stream_cls in list(STREAMS.items()):
         if name in schemas and stream_cls.parent and stream_cls.parent not in schemas:
             LOGGER.warning(
@@ -22,6 +23,8 @@ def _prune_inaccessible_children(schemas: dict, field_metadata: dict) -> None:
             )
             schemas.pop(name)
             field_metadata.pop(name)
+            to_remove.append(name)
+    return to_remove
 
 
 def _apply_access_checks(client, schemas: dict, field_metadata: dict) -> None:
@@ -42,18 +45,15 @@ def _apply_access_checks(client, schemas: dict, field_metadata: dict) -> None:
         schemas.pop(stream_name, None)
         field_metadata.pop(stream_name, None)
 
-    _prune_inaccessible_children(schemas, field_metadata)
+    inaccessible_streams.extend(_prune_inaccessible_children(schemas, field_metadata))
 
-    if inaccessible_streams:
-        total_parent_streams = len([s for s in STREAMS.values() if not s.parent])
-        if len(inaccessible_streams) == total_parent_streams:
-            raise CopperForbiddenError(
-                "HTTP-error-code: 403, Error: The account credentials supplied do not have 'read' access to any "
-                "of the streams supported by the tap. Data collection cannot be initiated due to lack of permissions."
-            )
+    if not schemas:
+        raise CopperForbiddenError(
+            "No streams are accessible. Ensure the credentials have read permission for at least one stream."
+        )
+    elif inaccessible_streams:
         LOGGER.warning(
-            "The account credentials supplied do not have 'read' access to the following stream(s): %s. "
-            "These streams have been excluded from the catalog.",
+            "Unauthorized streams excluded from catalog: %s",
             ", ".join(inaccessible_streams),
         )
 

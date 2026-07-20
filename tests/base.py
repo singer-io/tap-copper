@@ -186,3 +186,8 @@ class copperBaseTest(BaseCase):
                 to_return.add(stream_name)
 
         return to_return
+
+    def expected_stream_names(self):
+        """Return only streams expected to be discoverable with this test account."""
+        inaccessible_streams = {"pipeline_stages", "lead_statuses", "leads"}
+        return set(self.expected_metadata().keys()).difference(inaccessible_streams)
