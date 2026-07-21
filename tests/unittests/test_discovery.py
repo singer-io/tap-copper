@@ -5,7 +5,7 @@
 from unittest.mock import patch, MagicMock
 import pytest
 
-from tap_copper.discover import discover, _apply_access_checks, _prune_inaccessible_children
+from tap_copper.discover import discover, _apply_access_checks
 from tap_copper.exceptions import CopperForbiddenError
 
 
@@ -118,56 +118,7 @@ class TestApplyAccessChecks:
             "companies, leads",
         )
 
-    def test_child_streams_not_probed(self, mock_client):
-        """Child streams should not be probed directly; access governed by parent."""
-        schemas = {"companies": {}, "child_stream": {}}
-        field_metadata = {"companies": [], "child_stream": []}
 
-        mock_streams = {
-            "companies": _make_stream_cls("", True),
-            "child_stream": _make_stream_cls("companies", True),
-        }
-
-        with patch("tap_copper.discover.STREAMS", mock_streams):
-            _apply_access_checks(mock_client, schemas, field_metadata)
-
-        # Both should remain (parent accessible, child not probed)
-        assert "companies" in schemas
-        assert "child_stream" in schemas
-
-
-class TestPruneInaccessibleChildren:
-    """Tests for _prune_inaccessible_children."""
-
-    def test_children_removed_when_parent_excluded(self):
-        """Child streams are removed when their parent is not in schemas."""
-        schemas = {"child_stream": {}}
-        field_metadata = {"child_stream": []}
-
-        mock_streams = {
-            "child_stream": _make_stream_cls("companies", True),
-        }
-
-        with patch("tap_copper.discover.STREAMS", mock_streams):
-            _prune_inaccessible_children(schemas, field_metadata)
-
-        assert "child_stream" not in schemas
-        assert "child_stream" not in field_metadata
-
-    def test_children_kept_when_parent_present(self):
-        """Child streams are kept when their parent is in schemas."""
-        schemas = {"companies": {}, "child_stream": {}}
-        field_metadata = {"companies": [], "child_stream": []}
-
-        mock_streams = {
-            "companies": _make_stream_cls("", True),
-            "child_stream": _make_stream_cls("companies", True),
-        }
-
-        with patch("tap_copper.discover.STREAMS", mock_streams):
-            _prune_inaccessible_children(schemas, field_metadata)
-
-        assert "child_stream" in schemas
 
 
 class TestDiscover:

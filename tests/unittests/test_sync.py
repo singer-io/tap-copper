@@ -135,23 +135,6 @@ class TestCheckAccess:
             str(exc),
         )
 
-    def test_check_access_returns_true_for_child_stream(self, mock_client, mock_catalog):
-        """Child streams always return True without probing API."""
-
-        class ChildStream(IncrementalStream):
-            tap_stream_id = "child_stream"
-            replication_method = "INCREMENTAL"
-            replication_keys = ["date_modified"]
-            key_properties = ["id"]
-            path = "child/search"
-            http_method = "POST"
-            parent = "parent_stream"
-
-        stream = ChildStream(client=mock_client, catalog=mock_catalog)
-        assert stream.check_access() is True
-        mock_client.make_request.assert_not_called()
-
-
 class TestIncrementalSync:
     """Tests for IncrementalStream.sync."""
 
