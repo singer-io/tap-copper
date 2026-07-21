@@ -66,14 +66,14 @@ class Client:
             self.request_timeout = REQUEST_TIMEOUT
 
     def __enter__(self):
-        self.check_api_credentials()
         return self
 
     def __exit__(self, exception_type, exception_value, traceback):
         self._session.close()
 
     def check_api_credentials(self) -> None:
-        pass
+        """Validate API credentials with a lightweight authenticated request."""
+        self.make_request("GET", endpoint=f"{self.base_url}/account")
 
     def authenticate(self, headers: Dict, params: Dict) -> Tuple[Dict, Dict]:
         """Attach Copper authentication headers."""
@@ -139,6 +139,7 @@ class Client:
             if method in ("GET", "POST"):
                 if method == "GET":
                     kwargs.pop("data", None)
+                    kwargs.pop("json", None)
                 response = self._session.request(method, endpoint, **kwargs)
                 raise_for_error(response)
             else:

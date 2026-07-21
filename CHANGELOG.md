@@ -1,7 +1,11 @@
 # Changelog
 
 ## 0.2.0
-  * Streams returning 403 during discovery are excluded from the catalog; discovery still raises if no parent streams are accessible.[#14](https://github.com/singer-io/tap-copper/pull/14)
+  * Streams that the credentials cannot access (403) are now excluded from the catalog during discovery instead of raising an error.[#14](https://github.com/singer-io/tap-copper/pull/14)
+
+# 0.1.2
+  * Bump requests to 2.33.0 for security updates [#15](https://github.com/singer-io/tap-copper/pull/15)
+  * Fail discovery on invalid Copper credentials [#16](https://github.com/singer-io/tap-copper/pull/16)
 
 ## 0.1.1
   * Add singer.utils exception handling to main() [#11](https://github.com/singer-io/tap-copper/pull/11)
