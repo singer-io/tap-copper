@@ -11,9 +11,9 @@ LOGGER = singer.get_logger()
 
 def _apply_access_checks(client, schemas: dict, field_metadata: dict) -> None:
     """
-    Probe each parent stream for read access and remove inaccessible streams
-    (and their children) from schemas and field_metadata in place.
-    Raises CopperForbiddenError if no parent streams are accessible.
+    Probe each stream for read access and remove inaccessible streams from
+    schemas and field_metadata in place.
+    Raises CopperForbiddenError if no streams are accessible.
     """
     inaccessible_streams = [
         stream_name
