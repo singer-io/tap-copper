@@ -22,7 +22,6 @@ class copperAllFields(AllFieldsTest, copperBaseTest):
 
     def streams_to_test(self):
         streams_to_exclude = {
-            "pipeline_stages",
             "projects",
             "custom_field_definitions",
             "pipelines",

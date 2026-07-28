@@ -12,7 +12,7 @@ class copperInterruptedSyncTest(InterruptedSyncTest, copperBaseTest):
         return "tap_tester_copper_interrupted_sync_test"
 
     def streams_to_test(self):
-        streams_to_exclude = {"pipeline_stages", "leads"}.union(self.get_full_table_streams())
+        streams_to_exclude = self.get_full_table_streams()
         return self.expected_stream_names().difference(streams_to_exclude)
 
     def manipulate_state(self):

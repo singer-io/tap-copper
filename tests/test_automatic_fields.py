@@ -14,7 +14,6 @@ class copperAutomaticFields(MinimumSelectionTest, copperBaseTest):
 
     def streams_to_test(self):
         streams_to_exclude = {
-            "pipeline_stages",  # inaccessible
             "custom_field_definitions",  # no records in current account
             "pipelines",  # no records in current account
             "tags",  # no records in current account
