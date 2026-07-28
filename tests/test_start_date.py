@@ -1,11 +1,7 @@
-import unittest
-
 from base import copperBaseTest
 from tap_tester.base_suite_tests.start_date_test import StartDateTest
 
 
-
-@unittest.skip("Copper API responses for this account do not reliably enforce start_date filtering")
 class copperStartDateTest(StartDateTest, copperBaseTest):
     """Instantiate start date according to the desired data set and run the
     test."""
