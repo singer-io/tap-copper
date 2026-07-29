@@ -12,6 +12,7 @@ class copperBookMarkTest(BookmarkTest, copperBaseTest):
             "companies": {"date_modified": "2022-04-08T06:00:00Z"},
             "opportunities": {"date_modified": "2022-04-08T06:00:00Z"},
             "people": {"date_modified": "2022-04-08T06:00:00Z"},
+            "projects": {"date_modified": "2022-04-08T06:00:00Z"},
             "tasks": {"date_modified": "2022-02-01T00:00:00Z"},
         }
     }
@@ -33,7 +34,11 @@ class copperBookMarkTest(BookmarkTest, copperBaseTest):
         back data)"""
         new_bookmarks = {
             "activities_search": {"date_modified": "2026-07-20T02:09:20Z"},
-
+            "companies": {"date_modified": "2026-07-20T02:09:00Z"},
+            "opportunities": {"date_modified": "2026-07-20T02:09:00Z"},
+            "people": {"date_modified": "2026-07-20T02:09:27Z"},
+            "projects": {"date_modified": "2026-07-20T02:08:52Z"},
+            "tasks": {"date_modified": "2026-07-20T02:09:27Z"},
         }
 
         return new_bookmarks
