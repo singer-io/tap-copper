@@ -106,12 +106,13 @@ class TestCheckAccess:
 
         assert stream.check_access() is False
 
-    def test_check_access_returns_false_on_unauthorized(self, mock_client, mock_catalog):
-        """check_access returns False when API returns 401."""
+    def test_check_access_raises_on_unauthorized(self, mock_client, mock_catalog):
+        """check_access propagates 401 instead of excluding the stream."""
         mock_client.make_request.side_effect = CopperUnauthorizedError("Unauthorized")
         stream = ConcreteIncremental(client=mock_client, catalog=mock_catalog)
 
-        assert stream.check_access() is False
+        with pytest.raises(CopperUnauthorizedError):
+            stream.check_access()
 
     def test_check_access_returns_false_on_not_found(self, mock_client, mock_catalog):
         """check_access returns False when API endpoint returns 404."""

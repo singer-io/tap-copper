@@ -1,7 +1,7 @@
 # Changelog
 
 ## 0.2.0
-  * Streams that the credentials cannot access (401/403/404) are now excluded from the catalog during discovery instead of raising an error. [#14](https://github.com/singer-io/tap-copper/pull/14)
+  * Exclude inaccessible (HTTP 403/404) streams from the catalog during discovery; all other errors still fail the run [#14](https://github.com/singer-io/tap-copper/pull/14)
 
 # 0.1.2
   * Bump requests to 2.33.0 for security updates [#15](https://github.com/singer-io/tap-copper/pull/15)
