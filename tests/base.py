@@ -110,8 +110,7 @@ class copperBaseTest(BaseCase):
                 cls.REPLICATION_METHOD: cls.FULL_TABLE,
                 cls.REPLICATION_KEYS: set(),
                 cls.OBEYS_START_DATE: False,
-                cls.API_LIMIT: 100,
-                cls.IS_FORBIDDEN_STREAM: True
+                cls.API_LIMIT: 100
             },
             "pipelines": {
                 cls.PRIMARY_KEYS: {"id"},

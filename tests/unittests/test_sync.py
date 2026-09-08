@@ -115,11 +115,12 @@ class TestCheckAccess:
             stream.check_access()
 
     def test_check_access_returns_false_on_not_found(self, mock_client, mock_catalog):
-        """check_access returns False when API endpoint returns 404."""
+        """check_access propagates 404 instead of excluding the stream."""
         mock_client.make_request.side_effect = CopperNotFoundError("Not Found")
         stream = ConcreteIncremental(client=mock_client, catalog=mock_catalog)
 
-        assert stream.check_access() is False
+        with pytest.raises(CopperNotFoundError):
+            stream.check_access()
 
     def test_check_access_logs_warning_message_on_inaccessible_stream(self, mock_client, mock_catalog):
         """check_access logs stream-specific warning when access probing fails."""

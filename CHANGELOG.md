@@ -2,6 +2,7 @@
 
 ## 0.2.0
   * Exclude inaccessible (HTTP 403/404) streams from the catalog during discovery; all other errors still fail the run [#14](https://github.com/singer-io/tap-copper/pull/14)
+  * Bump requests to 2.34.2 and singer-python to 6.8.0
 
 # 0.1.2
   * Bump requests to 2.33.0 for security updates [#15](https://github.com/singer-io/tap-copper/pull/15)

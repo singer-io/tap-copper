@@ -385,7 +385,7 @@ class BaseStream(ABC):
                 body=body,
             )
             return True
-        except (CopperForbiddenError, CopperNotFoundError) as exc:
+        except CopperForbiddenError as exc:
             LOGGER.warning(
                 "Unauthorized Stream: %s, excluding from catalog. HTTP-Error-Message:'%s'",
                 self.tap_stream_id,
