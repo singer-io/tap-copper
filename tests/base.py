@@ -10,6 +10,7 @@ class copperBaseTest(BaseCase):
     in tap-tester tests. Shared tap-specific methods (as needed).
     """
     start_date = "2019-01-01T00:00:00Z"
+    IS_FORBIDDEN_STREAM = "is_forbidden_stream"
 
     @staticmethod
     def tap_name():
@@ -72,14 +73,16 @@ class copperBaseTest(BaseCase):
                 cls.REPLICATION_METHOD: cls.FULL_TABLE,
                 cls.REPLICATION_KEYS: set(),
                 cls.OBEYS_START_DATE: False,
-                cls.API_LIMIT: 100
+                cls.API_LIMIT: 100,
+                cls.IS_FORBIDDEN_STREAM: True
             },
             "leads": {
                 cls.PRIMARY_KEYS: {"id"},
                 cls.REPLICATION_METHOD: cls.INCREMENTAL,
                 cls.REPLICATION_KEYS: {"date_modified"},
                 cls.OBEYS_START_DATE: False,
-                cls.API_LIMIT: 1
+                cls.API_LIMIT: 1,
+                cls.IS_FORBIDDEN_STREAM: True
             },
             "loss_reasons": {
                 cls.PRIMARY_KEYS: {"id"},
@@ -186,3 +189,11 @@ class copperBaseTest(BaseCase):
                 to_return.add(stream_name)
 
         return to_return
+
+    def expected_stream_names(self):
+        """The expected stream names and exclude forbidden streams."""
+        return {
+            stream_name
+            for stream_name, metadata in self.expected_metadata().items()
+            if not metadata.get(self.IS_FORBIDDEN_STREAM, False)
+        }
