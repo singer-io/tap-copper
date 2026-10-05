@@ -66,6 +66,7 @@ class Client:
             self.request_timeout = REQUEST_TIMEOUT
 
     def __enter__(self):
+        self.check_api_credentials()
         return self
 
     def __exit__(self, exception_type, exception_value, traceback):

@@ -140,6 +140,7 @@ def test_client_backoff_on_transient_errors(monkeypatch, exc_cls, client_cfg):
     def fake_request(*_a, **_k):
         raise exc_cls()
     monkeypatch.setattr("requests.Session.request", fake_request)
+    monkeypatch.setattr(Client, "check_api_credentials", lambda self: None)
 
     with Client(client_cfg) as client:
         with pytest.raises(exc_cls):
@@ -150,6 +151,7 @@ def test_client_backoff_on_mapped_server_errors(monkeypatch, client_cfg):
         "requests.Session.request",
         lambda *_a, **_k: make_response(503, {"message": "Service unavailable"}),
     )
+    monkeypatch.setattr(Client, "check_api_credentials", lambda self: None)
     with Client(client_cfg) as client:
         with pytest.raises(CopperServiceUnavailableError):
             client.make_request("GET", "https://example.test", params={}, headers={})
@@ -161,6 +163,7 @@ def test_client_backoff_on_rate_limit(monkeypatch, client_cfg):
             429, {"message": "Too many requests"}, headers={"Retry-After": "3"}
         ),
     )
+    monkeypatch.setattr(Client, "check_api_credentials", lambda self: None)
     with Client(client_cfg) as client:
         with pytest.raises(CopperRateLimitError):
             client.make_request("GET", "https://example.test", params={}, headers={})
@@ -207,11 +210,13 @@ def test_no_content_response_returns_none(monkeypatch, client_cfg):
 
 def test_unknown_error_maps_to_copper_error(monkeypatch, client_cfg):
     monkeypatch.setattr("requests.Session.request", lambda *_a, **_k: make_response(418, {"message": "teapot"}))
+    monkeypatch.setattr(Client, "check_api_credentials", lambda self: None)
     with Client(client_cfg) as client:
         with pytest.raises(CopperError):
             client.make_request("GET", "https://example.test", params={}, headers={})
 
-def test_bad_method_raises_value_error(client_cfg):
+def test_bad_method_raises_value_error(monkeypatch, client_cfg):
+    monkeypatch.setattr(Client, "check_api_credentials", lambda self: None)
     with Client(client_cfg) as client:
         with pytest.raises(ValueError):
             client.make_request("PUT", "https://example.test", {}, {})

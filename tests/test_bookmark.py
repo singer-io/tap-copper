@@ -12,6 +12,7 @@ class copperBookMarkTest(BookmarkTest, copperBaseTest):
             "companies": {"date_modified": "2022-04-08T06:00:00Z"},
             "opportunities": {"date_modified": "2022-04-08T06:00:00Z"},
             "people": {"date_modified": "2022-04-08T06:00:00Z"},
+            "projects": {"date_modified": "2022-04-08T06:00:00Z"},
             "tasks": {"date_modified": "2022-02-01T00:00:00Z"},
         }
     }
@@ -21,21 +22,23 @@ class copperBookMarkTest(BookmarkTest, copperBaseTest):
         return "tap_tester_copper_bookmark_test"
 
     def streams_to_test(self):
-        # Excluded pipeline_stages as we don't have access, projects and leads were not having sufficient data
-        streams_to_exclude = {"pipeline_stages", "projects", "leads"}.union(self.get_full_table_streams())
-        return self.expected_stream_names().difference(streams_to_exclude)
+        # Validate bookmark behavior across all streams included in initial state.
+        return set(self.initial_bookmarks["bookmarks"].keys())
+
+    def expected_sync_streams(self):
+        return self.streams_to_test()
 
     def calculate_new_bookmarks(self):
         """Calculates new bookmarks by looking through sync 1 data to determine
         a bookmark that will sync 2 records in sync 2 (plus any necessary look
         back data)"""
         new_bookmarks = {
-            "activities_search": {"date_modified": "2025-08-08T06:00:00Z"},
-            "companies": {"date_modified": "2025-08-08T06:00:00Z"},
-            "opportunities": {"date_modified": "2025-09-08T06:00:00Z"},
-            "people": {"date_modified": "2025-09-08T06:00:00Z"},
-            "tasks": {"date_modified": "2025-08-08T00:00:00Z"},
-
+            "activities_search": {"date_modified": "2026-07-20T02:09:20Z"},
+            "companies": {"date_modified": "2026-07-20T02:09:00Z"},
+            "opportunities": {"date_modified": "2026-07-20T02:09:00Z"},
+            "people": {"date_modified": "2026-07-20T02:09:27Z"},
+            "projects": {"date_modified": "2026-07-20T02:08:52Z"},
+            "tasks": {"date_modified": "2026-07-20T02:09:27Z"},
         }
 
         return new_bookmarks

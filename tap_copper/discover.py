@@ -1,15 +1,51 @@
 import singer
 from singer import metadata
 from singer.catalog import Catalog, CatalogEntry, Schema
-from typing import Dict
 
 from tap_copper.schema import get_schemas
+from tap_copper.streams import STREAMS
+from tap_copper.exceptions import CopperForbiddenError
 
 LOGGER = singer.get_logger()
 
 
-def discover(config: Dict = None) -> Catalog:
-    schemas, field_metadata = get_schemas(config=config)
+def _apply_access_checks(client, schemas: dict, field_metadata: dict) -> None:
+    """
+    Probe each stream for read access and remove inaccessible streams from
+    schemas and field_metadata in place.
+    Raises CopperForbiddenError if no streams are accessible.
+    """
+    inaccessible_streams = [
+        stream_name
+        for stream_name, stream_cls in STREAMS.items()
+        if stream_name in schemas
+        and not stream_cls(client=client).check_access()
+    ]
+
+    for stream_name in inaccessible_streams:
+        schemas.pop(stream_name, None)
+        field_metadata.pop(stream_name, None)
+
+    if not schemas:
+        raise CopperForbiddenError(
+            "No streams are accessible. Ensure the credentials have read permission for at least one stream."
+        )
+    elif inaccessible_streams:
+        LOGGER.warning(
+            "Unauthorized streams excluded from catalog: %s",
+            ", ".join(inaccessible_streams),
+        )
+
+
+def discover(client) -> Catalog:
+    """
+    Run the discovery mode, prepare the catalog file and return the catalog.
+    Access to each stream is verified using the provided client and streams
+    the credentials cannot read are excluded from the returned catalog.
+    """
+    schemas, field_metadata = get_schemas()
+    _apply_access_checks(client, schemas, field_metadata)
+
     catalog = Catalog([])
 
     for stream_name, schema_dict in schemas.items():

@@ -21,5 +21,10 @@ class copperAllFields(AllFieldsTest, copperBaseTest):
         return "tap_tester_copper_all_fields_test"
 
     def streams_to_test(self):
-        streams_to_exclude = {"pipeline_stages", "projects"}
+        streams_to_exclude = {
+            "projects",
+            "custom_field_definitions",
+            "pipelines",
+            "tags",
+        }
         return self.expected_stream_names().difference(streams_to_exclude)
