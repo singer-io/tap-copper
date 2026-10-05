@@ -6,6 +6,7 @@ import pytest
 import singer
 from singer import metadata
 
+from tap_copper.exceptions import CopperForbiddenError, CopperNotFoundError
 from tap_copper.streams.abstracts import IncrementalStream
 
 
@@ -187,3 +188,14 @@ def test_get_bookmark_and_write_bookmark_roundtrip(mock_client, mock_catalog):
     stream.write_bookmark(state, stream.tap_stream_id, 1234)
     bm2 = stream.get_bookmark(state, stream.tap_stream_id, stream.replication_keys[0])
     assert bm2 == 1234
+
+
+@pytest.mark.parametrize("error", [CopperForbiddenError, CopperNotFoundError])
+def test_check_access_excludes_forbidden_and_not_found_streams(
+    error, mock_client, mock_catalog
+):
+    stream = build_stream(mock_client, mock_catalog, records=[])
+    stream.url_endpoint = "https://api.copper.com/test"
+    stream.client.make_request = lambda *_args, **_kwargs: (_ for _ in ()).throw(error())
+
+    assert stream.check_access() is False
